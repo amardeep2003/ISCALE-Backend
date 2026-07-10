@@ -57,3 +57,6 @@ const courseSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("course_faq", courseSchema);
+
+
+// working schema

@@ -17,3 +17,6 @@ const SubjectSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("subject1", SubjectSchema);
+
+
+// not working schema

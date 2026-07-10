@@ -21,6 +21,22 @@ const ModuleSchema = new mongoose.Schema({
     trim: true,
     // required: true
   },
+
+  m_subject_icon: {
+    type: String,
+    default: null,
+  },
+
+  m_subject_icon_public_id: {
+    type: String,
+    default: null,
+  },
+
+  m_subject_status: {
+    type: Number,
+    enum: [0, 1], // 0=inactive, 1=active
+    default: 1, 
+  },
   code: {
     type: String,
     default: null,
@@ -47,5 +63,4 @@ const ModuleSchema = new mongoose.Schema({
 
 module.exports = mongoose.model("subject", ModuleSchema);
 
-
-// working schema 
+// working schema

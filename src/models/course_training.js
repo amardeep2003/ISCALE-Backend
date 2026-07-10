@@ -48,7 +48,12 @@ const navigationSchema = new mongoose.Schema(
     icon: {
       type: String,
       default: null,
-      maxlength: 255,
+  
+    },
+
+    icon_public_id:{
+      type: String,
+      default: null,
     },
 
     title: {
