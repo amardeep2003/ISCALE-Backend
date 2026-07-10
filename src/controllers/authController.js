@@ -423,7 +423,7 @@ exports.register = async (req, res) => {
 
     const mobile = req.registerUser.mobile;
 
-    if (!fname || !lname || !email || !password || !whatsapp || !gender) {
+    if (!fname || !lname || !email || !password || !whatsapp) {
       return res.status(400).json({
         status: false,
         message: "All fields are required",
@@ -514,7 +514,10 @@ exports.register = async (req, res) => {
     user.c_password = hashedPassword;
 
     user.c_whatsapp = whatsapp;
-    user.c_gender = gender;
+
+    if (gender) {
+      user.c_gender = gender;
+    }
 
     user.c_mobile_verified = 1;
     user.c_user_status = 1;
