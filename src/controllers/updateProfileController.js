@@ -1,9 +1,23 @@
+const mongoose = require("mongoose");
 const Candidate = require("../models/candidates");
 const bcrypt = require("bcrypt");
 const {
   extractUploadedFile,
   deleteFile,
 } = require("../services/storageService");
+
+// Fields the frontend renders as read-only; ignored here even if present in
+// the body so a direct API call can't bypass the locked UI.
+const LOCKED_PROFILE_FIELDS = [
+  "c_first_name",
+  "c_last_name",
+  "c_contact",
+  "c_email",
+  "firstName",
+  "lastName",
+  "mobileNumber",
+  "email",
+];
 
 //  GET PROFILE (prefill data)
 // exports.getProfile = async (req, res) => {
@@ -69,6 +83,10 @@ exports.updateProfile = async (req, res) => {
     // const updateData = req.body;
 
     const updateData = { ...req.body };
+
+    for (const field of LOCKED_PROFILE_FIELDS) {
+      delete updateData[field];
+    }
 
     if (
       updateData.c_current_country &&
@@ -170,6 +188,13 @@ exports.changePassword = async (req, res) => {
       return res.status(404).send({
         status: false,
         message: "User not found",
+      });
+    }
+
+    if (user.c_google_id || !user.c_password) {
+      return res.status(403).send({
+        status: false,
+        message: "Password change is not available for Google-authenticated accounts",
       });
     }
 

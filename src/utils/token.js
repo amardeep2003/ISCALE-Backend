@@ -56,4 +56,23 @@ const generateRegisterToken = (mobile) => {
   );
 };
 
-module.exports = { generateTokenAdmin, generateTokenUser, generateResetToken, generateRegisterToken };
+const generateEmailChangeToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id.toString(),
+      type: "email_change",
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "15m",
+    }
+  );
+};
+
+module.exports = {
+  generateTokenAdmin,
+  generateTokenUser,
+  generateResetToken,
+  generateRegisterToken,
+  generateEmailChangeToken,
+};

@@ -92,6 +92,15 @@ const candidateSchema = new mongoose.Schema({
     default: null,
   },
 
+  // Email-change flow (separate from mobile c_user_otp so the two flows
+  // never clobber each other if run concurrently)
+  c_email_otp: { type: String, default: null },
+  c_email_otp_expiry: { type: Date, default: null },
+
+  c_new_email: { type: String, default: null },
+  c_new_email_otp: { type: String, default: null },
+  c_new_email_otp_expiry: { type: Date, default: null },
+
   c_user_status: {
     type: Number,
     enum: [0, 1], //0=unvrified, 1=verified

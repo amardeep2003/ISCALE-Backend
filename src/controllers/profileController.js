@@ -86,6 +86,9 @@ const getMyProfile = async (req, res) => {
         address: `${user.c_current_address1 || ""} ${user.c_current_address2 || ""}`.trim(),
         occupation: user.m_occupation,
         biography: user.c_bio,
+
+        authProvider: user.c_google_id ? "google" : "mobile",
+        googleId: user.c_google_id || null,
       },
     });
   } catch (error) {

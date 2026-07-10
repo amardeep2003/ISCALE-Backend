@@ -3,8 +3,10 @@ const router = express.Router();
 
 const { authMiddleware } = require("../middlewares/authMiddleware");
 const { userMiddleware } = require("../middlewares/userMiddleware");
+const { emailChangeMiddleware } = require("../middlewares/emailChangeMiddleware");
 const { candidateUpload } = require("../middlewares/uploadMiddleware");
 const updateProfileController = require("../controllers/updateProfileController");
+const emailChangeController = require("../controllers/emailChangeController");
 
 //  Get profile (prefill form)
 router.get(
@@ -45,6 +47,37 @@ router.get(
   authMiddleware,
   userMiddleware,
   updateProfileController.getProfileImage,
+);
+
+// Email change flow (OTP on current email -> emailChangeToken -> OTP on new email)
+router.post(
+  "/email/send-current-otp",
+  authMiddleware,
+  userMiddleware,
+  emailChangeController.sendCurrentEmailOtp,
+);
+
+router.post(
+  "/email/verify-current-otp",
+  authMiddleware,
+  userMiddleware,
+  emailChangeController.verifyCurrentEmailOtp,
+);
+
+router.post(
+  "/email/send-new-otp",
+  authMiddleware,
+  userMiddleware,
+  emailChangeMiddleware,
+  emailChangeController.sendNewEmailOtp,
+);
+
+router.post(
+  "/email/verify-new-otp",
+  authMiddleware,
+  userMiddleware,
+  emailChangeMiddleware,
+  emailChangeController.verifyNewEmailOtp,
 );
 
 // Mobile Apis=============================================================================================================================

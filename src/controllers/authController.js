@@ -4,9 +4,26 @@ const bcrypt = require("bcrypt");
 const { generateTokenUser } = require("../utils/token");
 // const Candidate = require("../models/candidate");
 const sendSms = require("../utils/sendSms");
+const sendEmail = require("../utils/sendEmail");
 const { generateResetToken, generateRegisterToken } = require("../utils/token");
 const validator = require("validator");
 // const bcrypt = require("bcrypt");
+
+// Best-effort: registration should not fail just because the welcome
+// email couldn't be sent. Never log the plaintext password.
+const sendPasswordEmail = async (email, password) => {
+  if (!email) return;
+
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Your account password - The iScale",
+      text: `Welcome to The iScale! Your account password is: ${password}\n\nPlease keep it safe and change it after logging in if you'd like.`,
+    });
+  } catch (error) {
+    console.log("Failed to send password email:", error.message);
+  }
+};
 
 // //  LOGIN
 exports.login = async (req, res) => {
@@ -508,6 +525,8 @@ exports.register = async (req, res) => {
 
     await user.save();
 
+    await sendPasswordEmail(user.c_email, password);
+
     // Direct Login Token
     const token = generateTokenUser(user);
 
@@ -578,6 +597,8 @@ exports.createPassword = async (req, res) => {
     user.c_user_status = 1;
 
     await user.save();
+
+    await sendPasswordEmail(user.c_email, password);
 
     const token = generateTokenUser(user);
 
