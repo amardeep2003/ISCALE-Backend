@@ -87,6 +87,8 @@ const getMyProfile = async (req, res) => {
         occupation: user.m_occupation,
         biography: user.c_bio,
 
+        profileImage: user.c_profile_image,
+
         authProvider: user.c_google_id ? "google" : "mobile",
         googleId: user.c_google_id || null,
       },

@@ -19,6 +19,12 @@ const LOCKED_PROFILE_FIELDS = [
   "email",
 ];
 
+// Never return these to the client — passwords, OTP codes, and session
+// tokens have no business being in a profile response.
+const SENSITIVE_PROFILE_FIELDS =
+  "-c_password -c_user_otp -c_otp_expiry -c_email_otp -c_email_otp_expiry " +
+  "-c_new_email_otp -c_new_email_otp_expiry -c_user_session_token -remember_token";
+
 //  GET PROFILE (prefill data)
 // exports.getProfile = async (req, res) => {
 //   try {
@@ -53,7 +59,7 @@ exports.getProfile = async (req, res) => {
       .populate("c_current_country", "m_country_name")
       .populate("c_current_state", "m_state_name")
       .populate("c_current_city", "m_city_city")
-      .select("-c_password");
+      .select(SENSITIVE_PROFILE_FIELDS);
 
     if (!user) {
       return res.status(404).json({
@@ -137,7 +143,7 @@ exports.updateProfile = async (req, res) => {
       .populate("c_current_country", "country_name")
       .populate("c_current_state", "state_name")
       .populate("c_current_city", "city_name")
-      .select("-c_password");
+      .select(SENSITIVE_PROFILE_FIELDS);
 
     if (!updatedUser) {
       return res.status(404).send({
