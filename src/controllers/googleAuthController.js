@@ -68,17 +68,22 @@ exports.googleCallback = async (req, res) => {
     }
 
     if (user) {
+      const updates = {};
+
       if (!user.c_google_id) {
-        user.c_google_id = googleId;
+        updates.c_google_id = googleId;
       }
       if (!user.c_profile_image && payload.picture) {
-        user.c_profile_image = payload.picture;
+        updates.c_profile_image = payload.picture;
       }
       if (!user.c_email_verified && payload.email_verified) {
-        user.c_email_verified = 1;
+        updates.c_email_verified = 1;
       }
 
-      await user.save();
+      if (Object.keys(updates).length) {
+        await Candidate.updateOne({ _id: user._id }, { $set: updates });
+        Object.assign(user, updates);
+      }
     } else {
       const displayName = payload.name || payload.given_name || "";
 

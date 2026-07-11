@@ -9,7 +9,7 @@ exports.getDashboard = async (req, res) => {
     // USER DETAILS
     // =========================
     const user = await Candidate.findById(userId).select(
-      "c_first_name c_last_name"
+      "c_first_name c_last_name c_profile_image"
     );
 
     if (!user) {
@@ -44,6 +44,7 @@ exports.getDashboard = async (req, res) => {
       status: true,
       data: {
         name: `${user.c_first_name || ""} ${user.c_last_name || ""}`.trim(),
+        profileImage: user.c_profile_image,
         freeCourses,
         premiumCourses,
       },
