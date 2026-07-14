@@ -23,8 +23,7 @@ const LOCKED_PROFILE_FIELDS = [
 // tokens have no business being in a profile response.
 const SENSITIVE_PROFILE_FIELDS =
   "-c_password -c_user_otp -c_otp_expiry -c_email_otp -c_email_otp_expiry " +
-  "-c_new_email_otp -c_new_email_otp_expiry -c_new_contact_otp -c_new_contact_otp_expiry " +
-  "-c_user_session_token -remember_token";
+  "-c_new_email_otp -c_new_email_otp_expiry -c_user_session_token -remember_token";
 
 //  GET PROFILE (prefill data)
 // exports.getProfile = async (req, res) => {

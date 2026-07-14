@@ -81,33 +81,14 @@ router.post(
   emailChangeController.verifyNewEmailOtp,
 );
 
-// Mobile number add/change flow (OTP on current number, if any -> mobileChangeToken -> OTP on new number)
+// Add a mobile number (no OTP - our SMS vendor doesn't cover the
+// international numbers Google-login students use). One-time only:
+// rejected if the account already has a number.
 router.post(
-  "/mobile/send-current-otp",
+  "/mobile/add",
   authMiddleware,
   userMiddleware,
-  mobileChangeController.sendCurrentMobileOtp,
-);
-
-router.post(
-  "/mobile/verify-current-otp",
-  authMiddleware,
-  userMiddleware,
-  mobileChangeController.verifyCurrentMobileOtp,
-);
-
-router.post(
-  "/mobile/send-new-otp",
-  authMiddleware,
-  userMiddleware,
-  mobileChangeController.sendNewMobileOtp,
-);
-
-router.post(
-  "/mobile/verify-new-otp",
-  authMiddleware,
-  userMiddleware,
-  mobileChangeController.verifyNewMobileOtp,
+  mobileChangeController.addMobileNumber,
 );
 
 // Mobile Apis=============================================================================================================================

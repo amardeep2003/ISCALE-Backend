@@ -101,11 +101,6 @@ const candidateSchema = new mongoose.Schema({
   c_new_email_otp: { type: String, default: null },
   c_new_email_otp_expiry: { type: Date, default: null },
 
-  // Mobile add/change flow (separate from c_user_otp, the login-OTP field)
-  c_new_contact: { type: Number, default: null },
-  c_new_contact_otp: { type: String, default: null },
-  c_new_contact_otp_expiry: { type: Date, default: null },
-
   c_user_status: {
     type: Number,
     enum: [0, 1], //0=unvrified, 1=verified

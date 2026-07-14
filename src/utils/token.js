@@ -69,24 +69,10 @@ const generateEmailChangeToken = (user) => {
   );
 };
 
-const generateMobileChangeToken = (user) => {
-  return jwt.sign(
-    {
-      id: user._id.toString(),
-      type: "mobile_change",
-    },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: "15m",
-    }
-  );
-};
-
 module.exports = {
   generateTokenAdmin,
   generateTokenUser,
   generateResetToken,
   generateRegisterToken,
   generateEmailChangeToken,
-  generateMobileChangeToken,
 };
