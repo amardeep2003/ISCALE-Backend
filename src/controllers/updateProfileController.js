@@ -23,7 +23,8 @@ const LOCKED_PROFILE_FIELDS = [
 // tokens have no business being in a profile response.
 const SENSITIVE_PROFILE_FIELDS =
   "-c_password -c_user_otp -c_otp_expiry -c_email_otp -c_email_otp_expiry " +
-  "-c_new_email_otp -c_new_email_otp_expiry -c_user_session_token -remember_token";
+  "-c_new_email_otp -c_new_email_otp_expiry -c_new_contact_otp -c_new_contact_otp_expiry " +
+  "-c_user_session_token -remember_token";
 
 //  GET PROFILE (prefill data)
 // exports.getProfile = async (req, res) => {
@@ -92,6 +93,32 @@ exports.updateProfile = async (req, res) => {
 
     for (const field of LOCKED_PROFILE_FIELDS) {
       delete updateData[field];
+    }
+
+    // Plain-text location from the app's offline country-state-city
+    // dataset / pincode lookup. Kept apart from c_current_country/state/city
+    // (ObjectId refs the admin registration flow owns).
+    if (updateData.country !== undefined) {
+      updateData.c_current_country_name = updateData.country || null;
+      delete updateData.country;
+    }
+    if (updateData.state !== undefined) {
+      updateData.c_current_state_name = updateData.state || null;
+      delete updateData.state;
+    }
+    if (updateData.city !== undefined) {
+      updateData.c_current_city_name = updateData.city || null;
+      delete updateData.city;
+    }
+
+    // An empty string means "the frontend has nothing for this field",
+    // not "clear it" — the form resubmits every field on every save, so
+    // treating "" as a real value would wipe out data (e.g. c_display_name)
+    // any time the frontend doesn't have a value to send.
+    for (const key of Object.keys(updateData)) {
+      if (updateData[key] === "") {
+        delete updateData[key];
+      }
     }
 
     if (

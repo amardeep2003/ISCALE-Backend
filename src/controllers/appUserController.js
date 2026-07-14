@@ -35,6 +35,9 @@ const getAllUsers = async (req, res) => {
       from_date,
       to_date,
       user_status,
+      country,
+      state,
+      city,
     } = req.query;
 
     page = Number(page);
@@ -122,6 +125,23 @@ const getAllUsers = async (req, res) => {
     }
 
     // ======================================
+    // LOCATION FILTER (plain-text country/state/city
+    // entered via the candidate app's location picker)
+    // ======================================
+
+    if (isValidValue(country)) {
+      filter.c_current_country_name = { $regex: `^${country}$`, $options: "i" };
+    }
+
+    if (isValidValue(state)) {
+      filter.c_current_state_name = { $regex: `^${state}$`, $options: "i" };
+    }
+
+    if (isValidValue(city)) {
+      filter.c_current_city_name = { $regex: `^${city}$`, $options: "i" };
+    }
+
+    // ======================================
     // TOTAL
     // ======================================
 
@@ -141,6 +161,9 @@ const getAllUsers = async (req, res) => {
         c_contact
         c_register_date
         c_user_status
+        c_current_country_name
+        c_current_state_name
+        c_current_city_name
       `,
       )
       .sort({ c_register_date: -1 })

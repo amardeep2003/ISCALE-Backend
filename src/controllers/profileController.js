@@ -72,6 +72,7 @@ const getMyProfile = async (req, res) => {
         lastName: user.c_last_name,
         parentName: user.c_user_parent,
         mobileNumber: user.c_contact,
+        hasMobile: Boolean(user.c_contact),
         altMobileNumber: user.c_alt_contact,
         whatsappNumber: user.c_whatsapp,
         email: user.c_email,
@@ -81,6 +82,10 @@ const getMyProfile = async (req, res) => {
         country: user.c_current_country,
         state: user.c_current_state,
         city: user.c_current_city,
+
+        countryName: user.c_current_country_name,
+        stateName: user.c_current_state_name,
+        cityName: user.c_current_city_name,
 
         pincode: user.c_current_pincode,
         address: `${user.c_current_address1 || ""} ${user.c_current_address2 || ""}`.trim(),

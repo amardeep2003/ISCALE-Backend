@@ -101,6 +101,11 @@ const candidateSchema = new mongoose.Schema({
   c_new_email_otp: { type: String, default: null },
   c_new_email_otp_expiry: { type: Date, default: null },
 
+  // Mobile add/change flow (separate from c_user_otp, the login-OTP field)
+  c_new_contact: { type: Number, default: null },
+  c_new_contact_otp: { type: String, default: null },
+  c_new_contact_otp_expiry: { type: Date, default: null },
+
   c_user_status: {
     type: Number,
     enum: [0, 1], //0=unvrified, 1=verified
@@ -127,6 +132,16 @@ const candidateSchema = new mongoose.Schema({
   }, // type =string kar sakte hai
   // c_current_state: { type: String, default: null },
   // c_current_city: { type: String, default: null },
+
+  // Plain-text location entered via the candidate app's offline
+  // country-state-city dataset / pincode lookup. Kept separate from
+  // c_current_country/state/city, which are ObjectId refs the admin
+  // registration flow validates against the countries/state/city
+  // master-data collections.
+  c_current_country_name: { type: String, default: null },
+  c_current_state_name: { type: String, default: null },
+  c_current_city_name: { type: String, default: null },
+
   c_current_district: { type: String, default: null },
   c_current_area: { type: Number, default: null },
   c_current_pincode: { type: String, default: null }, // type = Number kar sakte hai

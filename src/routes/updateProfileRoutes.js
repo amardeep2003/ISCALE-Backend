@@ -7,6 +7,7 @@ const { emailChangeMiddleware } = require("../middlewares/emailChangeMiddleware"
 const { candidateUpload } = require("../middlewares/uploadMiddleware");
 const updateProfileController = require("../controllers/updateProfileController");
 const emailChangeController = require("../controllers/emailChangeController");
+const mobileChangeController = require("../controllers/mobileChangeController");
 
 //  Get profile (prefill form)
 router.get(
@@ -78,6 +79,35 @@ router.post(
   userMiddleware,
   emailChangeMiddleware,
   emailChangeController.verifyNewEmailOtp,
+);
+
+// Mobile number add/change flow (OTP on current number, if any -> mobileChangeToken -> OTP on new number)
+router.post(
+  "/mobile/send-current-otp",
+  authMiddleware,
+  userMiddleware,
+  mobileChangeController.sendCurrentMobileOtp,
+);
+
+router.post(
+  "/mobile/verify-current-otp",
+  authMiddleware,
+  userMiddleware,
+  mobileChangeController.verifyCurrentMobileOtp,
+);
+
+router.post(
+  "/mobile/send-new-otp",
+  authMiddleware,
+  userMiddleware,
+  mobileChangeController.sendNewMobileOtp,
+);
+
+router.post(
+  "/mobile/verify-new-otp",
+  authMiddleware,
+  userMiddleware,
+  mobileChangeController.verifyNewMobileOtp,
 );
 
 // Mobile Apis=============================================================================================================================
