@@ -166,7 +166,12 @@ const getAllUsers = async (req, res) => {
         c_current_city_name
       `,
       )
-      .sort({ c_register_date: -1 })
+      // _id as the primary sort key (not c_register_date): it's never
+      // missing and is inherently chronological, unlike c_register_date,
+      // which older incomplete OTP-only signups never had set - sorting
+      // by a field that can be null pushes those to the very end, past
+      // any reasonable page limit once real user volume grows.
+      .sort({ _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 

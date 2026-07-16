@@ -209,6 +209,7 @@ exports.checkMobile = async (req, res) => {
         c_contact: Number(mobile),
         c_user_otp: otp,
         c_otp_expiry: new Date(Date.now() + 5 * 60 * 1000),
+        c_register_date: new Date(),
       });
 
       const message = `${otp} is the OTP to authenticate login credential. Do not share with anyone. - The iScale`;
@@ -334,6 +335,7 @@ exports.resendOtp = async (req, res) => {
         c_contact: mobile,
         c_user_otp: otp,
         c_otp_expiry: new Date(Date.now() + 5 * 60 * 1000),
+        c_register_date: new Date(),
       });
     }
 
