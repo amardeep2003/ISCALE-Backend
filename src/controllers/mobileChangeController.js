@@ -1,5 +1,11 @@
 const Candidate = require("../models/candidates");
 
+// E.164-ish: optional leading "+", 7-15 digits total (covers Indian
+// 10-digit numbers and international formats alike). Not full E.164
+// validation (that needs a per-country library) - just loose enough to
+// not reject legitimate international numbers while catching junk input.
+const MOBILE_REGEX = /^\+?[0-9]{7,15}$/;
+
 // Google sign-in serves international students whose numbers our SMS
 // vendor can't reach, so there's no OTP step here. A phone number can be
 // added once from the profile and is then permanent — no OTP-verified
@@ -8,10 +14,12 @@ exports.addMobileNumber = async (req, res) => {
   try {
     const { mobile } = req.body;
 
-    if (!mobile || String(mobile).length !== 10) {
+    const trimmedMobile = typeof mobile === "string" ? mobile.trim() : "";
+
+    if (!MOBILE_REGEX.test(trimmedMobile)) {
       return res.status(400).json({
         status: false,
-        message: "A valid 10-digit mobile number is required",
+        message: "A valid mobile number is required",
       });
     }
 
@@ -28,10 +36,8 @@ exports.addMobileNumber = async (req, res) => {
       });
     }
 
-    const normalizedMobile = Number(mobile);
-
     const existing = await Candidate.findOne({
-      c_contact: normalizedMobile,
+      c_contact: trimmedMobile,
       _id: { $ne: user._id },
     });
 
@@ -44,13 +50,13 @@ exports.addMobileNumber = async (req, res) => {
 
     await Candidate.updateOne(
       { _id: user._id },
-      { $set: { c_contact: normalizedMobile } },
+      { $set: { c_contact: trimmedMobile } },
     );
 
     return res.status(200).json({
       status: true,
       message: "Mobile number added successfully",
-      mobile: normalizedMobile,
+      mobile: trimmedMobile,
     });
   } catch (error) {
     return res.status(500).json({ status: false, message: error.message });

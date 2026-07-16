@@ -57,10 +57,14 @@ const candidateSchema = new mongoose.Schema({
     },
   },
 
+  // String, not Number: international numbers need a leading "+" and
+  // country code, which a Number type can't represent (also loses
+  // leading zeros). The Indian OTP-login flow still enforces its own
+  // 10-digit check in authController; this field just stores whatever
+  // format the account actually used to sign up/add a number.
   c_contact: {
-    type: Number,
+    type: String,
     trim: true,
-    match: [/^[0-9]{10}$/, "Contact number must be exactly 10 digits"],
     unique: true,
     sparse: true,
     index: true,
