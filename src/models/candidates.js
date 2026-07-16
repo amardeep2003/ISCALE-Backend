@@ -105,9 +105,11 @@ const candidateSchema = new mongoose.Schema({
   c_new_email_otp: { type: String, default: null },
   c_new_email_otp_expiry: { type: Date, default: null },
 
+  // Login gate (active/inactive), unrelated to c_mobile_verified/
+  // c_email_verified/c_admin_verified, which drive the "Verified" badge.
   c_user_status: {
     type: Number,
-    enum: [0, 1], //0=unvrified, 1=verified
+    enum: [0, 1], // 0=inactive (can't log in), 1=active
     default: 0,
   },
 
@@ -292,6 +294,13 @@ const candidateSchema = new mongoose.Schema({
   c_email_verified: {
     type: Number,
     enum: [0, 1], //0=unvrified, 1=verified
+    default: 0,
+  },
+  // Manual admin override for the "Verified" badge - displayed verified
+  // status is c_mobile_verified || c_email_verified || c_admin_verified.
+  c_admin_verified: {
+    type: Number,
+    enum: [0, 1],
     default: 0,
   },
 

@@ -161,6 +161,9 @@ const getAllUsers = async (req, res) => {
         c_contact
         c_register_date
         c_user_status
+        c_mobile_verified
+        c_email_verified
+        c_admin_verified
         c_current_country_name
         c_current_state_name
         c_current_city_name
@@ -175,6 +178,16 @@ const getAllUsers = async (req, res) => {
       .skip((page - 1) * limit)
       .limit(limit);
 
+    const usersWithVerification = users.map((u) => {
+      const obj = u.toObject();
+
+      obj.isVerified = Boolean(
+        u.c_mobile_verified || u.c_email_verified || u.c_admin_verified,
+      );
+
+      return obj;
+    });
+
     return res.status(200).json({
       status: true,
       message: "Users fetched successfully",
@@ -184,7 +197,7 @@ const getAllUsers = async (req, res) => {
         limit,
         totalPages: Math.ceil(total / limit),
       },
-      data: users,
+      data: usersWithVerification,
     });
   } catch (error) {
     return res.status(500).json({
@@ -229,9 +242,15 @@ const getSingleUser = async (req, res) => {
       });
     }
 
+    const userObj = user.toObject();
+
+    userObj.isVerified = Boolean(
+      user.c_mobile_verified || user.c_email_verified || user.c_admin_verified,
+    );
+
     return res.status(200).json({
       status: true,
-      data: user,
+      data: userObj,
     });
   } catch (error) {
     return res.status(500).json({
@@ -605,6 +624,59 @@ const searchUsersForDropdown = async (req, res) => {
 };
 
 // ======================================
+// TOGGLE ADMIN-VERIFIED (the "Verified" badge)
+// ======================================
+// Displayed verified status = c_mobile_verified || c_email_verified ||
+// c_admin_verified. Mobile/email verification is earned automatically
+// through the OTP/Google flows; this is the admin's manual override for
+// accounts that haven't gone through either (e.g. admin-created ones).
+
+const toggleAdminVerified = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const user = await Candidate.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: "User not found",
+      });
+    }
+
+    user.c_admin_verified = user.c_admin_verified === 1 ? 0 : 1;
+
+    await Candidate.updateOne(
+      { _id: user._id },
+      { $set: { c_admin_verified: user.c_admin_verified } },
+    );
+
+    const isVerified = Boolean(
+      user.c_mobile_verified || user.c_email_verified || user.c_admin_verified,
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Verified status updated successfully",
+      c_admin_verified: user.c_admin_verified,
+      isVerified,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
 // DELETE USER
 // ======================================
 
@@ -669,4 +741,5 @@ module.exports = {
   editUser,
   deleteUser,
   searchUsersForDropdown,
+  toggleAdminVerified,
 };
