@@ -7,7 +7,9 @@ const candidateSchema = new mongoose.Schema({
   //   auto: true
   // },
 
-  candidate_idno: { type: String },
+  // Format: YYMMNNNN - YY/MM from the joining (registration) date,
+  // NNNN a per-month sequence from 0115-9999. See utils/generateCandidateIdno.
+  candidate_idno: { type: String, unique: true, sparse: true, index: true },
 
   c_register_date: { type: Date },
 

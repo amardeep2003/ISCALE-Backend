@@ -5,6 +5,7 @@ const { generateTokenUser } = require("../utils/token");
 // const Candidate = require("../models/candidate");
 const sendSms = require("../utils/sendSms");
 const sendEmail = require("../utils/sendEmail");
+const generateCandidateIdno = require("../utils/generateCandidateIdno");
 const { generateResetToken, generateRegisterToken } = require("../utils/token");
 const validator = require("validator");
 // const bcrypt = require("bcrypt");
@@ -525,8 +526,10 @@ exports.register = async (req, res) => {
     user.c_user_status = 1;
     user.c_email_verified = 0;
 
-    user.c_register_date = new Date();
-    user.candidate_idno = Date.now().toString();
+    const joinDate = new Date();
+
+    user.c_register_date = joinDate;
+    user.candidate_idno = await generateCandidateIdno(joinDate);
 
     await user.save();
 

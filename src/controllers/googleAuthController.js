@@ -1,6 +1,7 @@
 const { OAuth2Client } = require("google-auth-library");
 const Candidate = require("../models/candidates");
 const { generateTokenUser } = require("../utils/token");
+const generateCandidateIdno = require("../utils/generateCandidateIdno");
 
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -86,10 +87,11 @@ exports.googleCallback = async (req, res) => {
       }
     } else {
       const displayName = payload.name || payload.given_name || "";
+      const joinDate = new Date();
 
       user = await Candidate.create({
-        candidate_idno: Date.now().toString(),
-        c_register_date: new Date(),
+        candidate_idno: await generateCandidateIdno(joinDate),
+        c_register_date: joinDate,
         c_first_name: payload.given_name || displayName,
         c_last_name: payload.family_name || "",
         c_display_name: displayName,
