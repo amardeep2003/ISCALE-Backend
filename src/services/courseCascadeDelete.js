@@ -7,7 +7,7 @@ const Lecture = require("../models/lecture");
 const LectureProgress = require("../models/lecture_progress");
 const TestPackage = require("../models/test_package");
 const Navigation = require("../models/course_training");
-// const Enrollment = require("../models/course_enrollment");
+const Enrollment = require("../models/course_enrollment");
 
 const { deleteFile } = require("./storageService");
 
