@@ -26,6 +26,17 @@ const rollbackUploadedFiles = async (files = []) => {
   }
 };
 
+// Multipart form values arrive as strings.  Do not let an invalid numeric
+// value reach Mongoose, where it would become a cast error/NaN.
+const parseOptionalNumber = (value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return { value: null };
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? { value: number } : { error: true };
+};
+
 // ADD COURSE
 const addCourse = async (req, res) => {
   const uploadedFiles = [];
@@ -144,16 +155,12 @@ const addCourse = async (req, res) => {
     //     .json({ status: false, message: "Invalid instructor id" });
     // }
 
-    if (m_course_trainee) {
-      if (!Array.isArray(m_course_trainee)) {
-        await rollbackUploadedFiles(uploadedFiles);
-        return res.status(400).json({
-          status: false,
-          message: "m_course_trainee must be an array",
-        });
-      }
+    const traineeIds = m_course_trainee
+      ? (Array.isArray(m_course_trainee) ? m_course_trainee : [m_course_trainee])
+      : [];
 
-      const invalidIds = m_course_trainee.filter(
+    if (traineeIds.length) {
+      const invalidIds = traineeIds.filter(
         (id) => !mongoose.Types.ObjectId.isValid(id),
       );
 
@@ -301,6 +308,28 @@ const addCourse = async (req, res) => {
       });
     }
 
+    const numericFields = {
+      m_course_duration_app,
+      m_course_duration_web,
+      m_course_order,
+      m_course_view,
+      m_course_reviews,
+      m_course_rating,
+    };
+    const numericValues = {};
+
+    for (const [field, value] of Object.entries(numericFields)) {
+      const parsed = parseOptionalNumber(value);
+      if (parsed.error || (parsed.value !== null && parsed.value < 0)) {
+        await rollbackUploadedFiles(uploadedFiles);
+        return res.status(400).json({
+          status: false,
+          message: `${field} must be a non-negative number`,
+        });
+      }
+      numericValues[field] = parsed.value;
+    }
+
     // FILE HANDLING (SAFE)
     // const getFile = (name) => req.files?.[name]?.[0]?.path || null;
 
@@ -410,18 +439,14 @@ const addCourse = async (req, res) => {
       // m_course_reviews: 0,
       m_course_share: 0,
 
-      m_course_duration_app: m_course_duration_app?.toString() || null,
-      m_course_duration_web: m_course_duration_web
-        ? Number(m_course_duration_web)
-        : null,
+      m_course_duration_app: numericValues.m_course_duration_app,
+      m_course_duration_web: numericValues.m_course_duration_web,
 
       // m_course_trainee: m_course_trainee
       //   ? new mongoose.Types.ObjectId(m_course_trainee)
       //   : null,
 
-      m_course_trainee: m_course_trainee
-        ? m_course_trainee.map((id) => new mongoose.Types.ObjectId(id))
-        : [],
+      m_course_trainee: traineeIds.map((id) => new mongoose.Types.ObjectId(id)),
 
       m_course_certificate:
         m_course_certificate !== undefined
@@ -432,15 +457,13 @@ const addCourse = async (req, res) => {
       m_course_web_g_link: m_course_web_g_link || null,
       m_course_graphy_instruction: m_course_graphy_instruction || null,
 
-      m_course_order: m_course_order ? Number(m_course_order) : null,
+      m_course_order: numericValues.m_course_order,
 
-      m_course_view: m_course_view !== undefined ? Number(m_course_view) : 0,
+      m_course_view: numericValues.m_course_view ?? 0,
 
-      m_course_reviews:
-        m_course_reviews !== undefined ? Number(m_course_reviews) : 0,
+      m_course_reviews: numericValues.m_course_reviews ?? 0,
 
-      m_course_rating:
-        m_course_rating !== undefined ? Number(m_course_rating) : 0,
+      m_course_rating: numericValues.m_course_rating ?? 0,
 
       m_course_modified: new Date(),
     });
@@ -1513,11 +1536,27 @@ const updateCourse = async (req, res) => {
     // =========================
 
     if (isValid(body.m_course_duration_app)) {
-      updateData.m_course_duration_app = body.m_course_duration_app.toString();
+      const parsed = parseOptionalNumber(body.m_course_duration_app);
+      if (parsed.error || parsed.value < 0) {
+        await rollbackUploadedFiles(uploadedFiles);
+        return res.status(400).json({
+          status: false,
+          message: "m_course_duration_app must be a non-negative number",
+        });
+      }
+      updateData.m_course_duration_app = parsed.value;
     }
 
     if (isValid(body.m_course_duration_web)) {
-      updateData.m_course_duration_web = Number(body.m_course_duration_web);
+      const parsed = parseOptionalNumber(body.m_course_duration_web);
+      if (parsed.error || parsed.value < 0) {
+        await rollbackUploadedFiles(uploadedFiles);
+        return res.status(400).json({
+          status: false,
+          message: "m_course_duration_web must be a non-negative number",
+        });
+      }
+      updateData.m_course_duration_web = parsed.value;
     }
 
     // =========================
@@ -1525,16 +1564,11 @@ const updateCourse = async (req, res) => {
     // =========================
 
     if (body.m_course_trainee !== undefined) {
-      if (!Array.isArray(body.m_course_trainee)) {
-        await rollbackUploadedFiles(uploadedFiles);
+      const traineeIds = Array.isArray(body.m_course_trainee)
+        ? body.m_course_trainee
+        : [body.m_course_trainee];
 
-        return res.status(400).json({
-          status: false,
-          message: "m_course_trainee must be array",
-        });
-      }
-
-      const invalidIds = body.m_course_trainee.filter(
+      const invalidIds = traineeIds.filter(
         (id) => !mongoose.Types.ObjectId.isValid(id),
       );
 
@@ -1547,7 +1581,7 @@ const updateCourse = async (req, res) => {
         });
       }
 
-      updateData.m_course_trainee = body.m_course_trainee.map(
+      updateData.m_course_trainee = traineeIds.map(
         (id) => new mongoose.Types.ObjectId(id),
       );
     }
