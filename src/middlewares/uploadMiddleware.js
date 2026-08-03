@@ -1,4 +1,5 @@
 const multer = require("multer");
+const path = require("path");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
 
@@ -118,10 +119,20 @@ const storage = new CloudinaryStorage({
       folder = "phone-images";
     }
 
+    // Cloudinary rejects public_ids with leading/trailing whitespace (and
+    // is happier without other special characters), which a raw filename
+    // like "AI Engineering Fees .pdf" (note the trailing space before the
+    // extension) or one with multiple dots would otherwise produce.
+    const baseName = path
+      .basename(file.originalname, path.extname(file.originalname))
+      .trim()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9_-]/g, "");
+
     return {
       folder: folder,
       resource_type: "auto",
-      public_id: Date.now() + "-" + file.originalname.split(".")[0],
+      public_id: `${Date.now()}-${baseName || "file"}`,
     };
   },
 });
