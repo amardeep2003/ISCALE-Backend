@@ -167,6 +167,7 @@ const getAllUsers = async (req, res) => {
         c_current_country_name
         c_current_state_name
         c_current_city_name
+        mobile_app_lifetime_access
       `,
       )
       // _id as the primary sort key (not c_register_date): it's never
@@ -677,6 +678,49 @@ const toggleAdminVerified = async (req, res) => {
 };
 
 // ======================================
+// TOGGLE LIFETIME ACCESS (the iScale mobile app)
+// ======================================
+// Manual admin override for mobile_app_lifetime_access - lets support grant
+// or revoke lifetime access to the mobile app without going through
+// Razorpay (comps, refunds, testing, etc).
+
+const toggleLifetimeAccess = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const user = await Candidate.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: "User not found",
+      });
+    }
+
+    user.mobile_app_lifetime_access = !user.mobile_app_lifetime_access;
+    await user.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Lifetime access updated successfully",
+      hasLifetimeAccess: user.mobile_app_lifetime_access,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
 // DELETE USER
 // ======================================
 
@@ -742,4 +786,5 @@ module.exports = {
   deleteUser,
   searchUsersForDropdown,
   toggleAdminVerified,
+  toggleLifetimeAccess,
 };

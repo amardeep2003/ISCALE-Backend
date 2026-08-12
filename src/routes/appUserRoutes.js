@@ -8,6 +8,7 @@ const {
   searchUsersForDropdown,
   deleteUser,
   toggleAdminVerified,
+  toggleLifetimeAccess,
 } = require("../controllers/appUserController");
 const { candidateUpload } = require("../middlewares/uploadMiddleware");
 const { authMiddleware } = require("../middlewares/authMiddleware");
@@ -35,6 +36,14 @@ router.patch(
   authMiddleware,
   adminMiddleware,
   toggleAdminVerified,
+);
+
+// Manual admin override for the iScale mobile app's lifetime-access flag.
+router.patch(
+  "/toggle-lifetime-access/:id",
+  authMiddleware,
+  adminMiddleware,
+  toggleLifetimeAccess,
 );
 
 module.exports = router;
