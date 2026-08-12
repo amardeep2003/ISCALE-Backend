@@ -268,6 +268,10 @@ const candidateSchema = new mongoose.Schema({
   subscription_end: { type: Date },
   next_apply_date: { type: Date },
 
+  // the iScale mobile app (face-lock): one-time lifetime purchase flag,
+  // unrelated to is_subscribe above (that field is currently unused).
+  mobile_app_lifetime_access: { type: Boolean, default: false },
+
   c_user_parent: { type: String },
   m_parent_mobile: { type: Number },
 
