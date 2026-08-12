@@ -53,6 +53,11 @@ const dataAnalyticsRoutes = require("./src/routes/dataAnalyticsRoutes");
 app.use("/DataAnalytics", dataAnalyticsRoutes);
 
 
+// the iScale mobile app (face-lock) routes
+const mobileAppRoutes = require("./src/routes/mobileAppRoutes");
+app.use("/mobileapp", mobileAppRoutes);
+
+
 
 //  default route
 app.get("/", (req, res) => {
