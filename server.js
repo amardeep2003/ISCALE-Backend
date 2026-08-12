@@ -55,7 +55,7 @@ app.use("/DataAnalytics", dataAnalyticsRoutes);
 
 // the iScale mobile app (face-lock) routes
 const mobileAppRoutes = require("./src/routes/mobileAppRoutes");
-app.use("/mobileapp", mobileAppRoutes);
+app.use("/app2", mobileAppRoutes);
 
 
 
