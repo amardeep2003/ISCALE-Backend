@@ -12,6 +12,12 @@ const phoneImageSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    title: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,

@@ -24,6 +24,7 @@ const uploadImage = async (req, res) => {
     const image = await Gallery.create({
       image: uploaded.url,
       public_id: uploaded.public_id,
+      title: req.body.title || "",
     });
 
     // console.log(req.file);
@@ -73,6 +74,45 @@ const getImageById = async (req, res) => {
 
     return res.status(200).json({
       status: true,
+      data: image,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// Update Image
+const updateImage = async (req, res) => {
+  try {
+    const image = await Gallery.findById(req.params.id);
+
+    if (!image) {
+      return res.status(404).json({
+        status: false,
+        message: "Image not found",
+      });
+    }
+
+    if (req.body.title !== undefined) {
+      image.title = req.body.title;
+    }
+
+    if (req.file) {
+      await deleteFile(image.public_id);
+
+      const uploaded = extractUploadedFile(req.file);
+      image.image = uploaded.url;
+      image.public_id = uploaded.public_id;
+    }
+
+    await image.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Image updated successfully",
       data: image,
     });
   } catch (error) {
@@ -143,5 +183,6 @@ module.exports = {
   uploadImage,
   getAllImages,
   getImageById,
+  updateImage,
   deleteImage,
 };

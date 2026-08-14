@@ -34,6 +34,15 @@ router.get(
   galleryController.getImageById,
 );
 
+// Update Image
+router.put(
+  "/:id",
+  authMiddleware,
+  adminMiddleware,
+  phoneImageUpload,
+  galleryController.updateImage,
+);
+
 // Delete Image
 router.delete(
   "/:id",
