@@ -72,7 +72,10 @@ const storage = new CloudinaryStorage({
     } else if (file.fieldname === "m_allied_image") {
       folder = "allied";
     } else if (file.fieldname === "m_news_image") {
-      folder = "news&updates";
+      // Cloudinary rejects "&" in a public_id (folder + filename), so this
+      // can't be "news&updates" - that broke every image upload/update on
+      // the News & Updates form with "public_id (...) is invalid".
+      folder = "news-updates";
     } else if (file.fieldname === "m_snews_image") {
       folder = "news";
     } else if (file.fieldname === "certificate_pdf") {
