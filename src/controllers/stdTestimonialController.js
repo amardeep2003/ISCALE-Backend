@@ -4,21 +4,37 @@ const fs = require("fs");
 const addTestimonial = async (req, res) => {
   try {
     const { m_st_url, m_st_status } = req.body;
+    const videoFiles = req.files?.m_st_video || [];
+    const status = m_st_status ? Number(m_st_status) : 1;
 
-    const video = req.files?.m_st_video ? req.files.m_st_video[0].path : null;
+    if (videoFiles.length === 0) {
+      // No video files - fall back to a single URL-only testimonial, same as before.
+      const saved = await new Testimonial({
+        m_st_video: null,
+        m_st_url,
+        m_st_status: status,
+      }).save();
 
-    const newData = new Testimonial({
-      m_st_video: video,
-      m_st_url,
-      m_st_status: m_st_status ? Number(m_st_status) : 1,
-    });
+      return res.status(201).json({
+        status: true,
+        message: "Testimonial added",
+        data: [saved],
+      });
+    }
 
-    const saved = await newData.save();
+    // Each uploaded video becomes its own testimonial document.
+    const created = await Testimonial.insertMany(
+      videoFiles.map((file) => ({
+        m_st_video: file.path,
+        m_st_url: m_st_url || null,
+        m_st_status: status,
+      })),
+    );
 
     res.status(201).json({
       status: true,
-      message: "Testimonial added",
-      data: saved,
+      message: `${created.length} testimonial${created.length > 1 ? "s" : ""} added`,
+      data: created,
     });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message });

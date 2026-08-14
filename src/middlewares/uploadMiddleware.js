@@ -608,7 +608,9 @@ const instructorUpload = upload.fields([
   { name: "m_instructor_profile", maxCount: 1 },
 ]);
 
-const testimonialUpload = upload.fields([{ name: "m_st_video", maxCount: 1 }]);
+// maxCount has to be a finite number for multer, so this is a generously high
+// stand-in for "no limit" on how many videos can be added in one batch.
+const testimonialUpload = upload.fields([{ name: "m_st_video", maxCount: 50 }]);
 
 const jobUpload = upload.fields([{ name: "company_logo", maxCount: 1 }]);
 
