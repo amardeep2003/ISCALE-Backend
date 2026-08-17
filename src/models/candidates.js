@@ -272,6 +272,14 @@ const candidateSchema = new mongoose.Schema({
   // unrelated to is_subscribe above (that field is currently unused).
   mobile_app_lifetime_access: { type: Boolean, default: false },
 
+  // the iScale mobile app (face-lock): the one enrolled face for this
+  // account, stored server-side so a reinstall/new device can't be used to
+  // register a second face and bypass the "one biometric identity" lock -
+  // enrollment is rejected once this is already true (see enrollFace).
+  mobile_app_face_registered: { type: Boolean, default: false },
+  mobile_app_face_image: { type: String, default: null },
+  mobile_app_face_image_public_id: { type: String, default: null },
+
   c_user_parent: { type: String },
   m_parent_mobile: { type: Number },
 

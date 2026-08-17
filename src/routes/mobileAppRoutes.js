@@ -9,6 +9,8 @@ const {
   checkLiveness,
   detectFace,
   verifyFaces,
+  enrollFace,
+  getFaceStatus,
 } = require("../controllers/mobileFaceController");
 const {
   getStatus,
@@ -23,6 +25,11 @@ router.get("/health", health);
 router.post("/face/liveness", mobileAppMiddleware, checkLiveness);
 router.post("/face/detect", mobileAppMiddleware, detectFace);
 router.post("/face/verify", mobileAppMiddleware, verifyFaces);
+
+// Server-side face enrollment - gated behind the candidate's own auth token
+// (not the shared app-key) since it's writing to that specific account.
+router.post("/face/enroll", authMiddleware, userMiddleware, enrollFace);
+router.get("/face/status", authMiddleware, userMiddleware, getFaceStatus);
 
 // Lifetime-access subscription - gated behind the logged-in candidate's own
 // auth token (from /api/auth/login-contact-password etc). Activation only
