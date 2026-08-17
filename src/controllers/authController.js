@@ -1,4 +1,5 @@
 const Candidate = require("../models/candidates");
+const Enrollment = require("../models/course_enrollment");
 // const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { generateTokenUser } = require("../utils/token");
@@ -9,6 +10,36 @@ const generateCandidateIdno = require("../utils/generateCandidateIdno");
 const { generateResetToken, generateRegisterToken } = require("../utils/token");
 const validator = require("validator");
 // const bcrypt = require("bcrypt");
+
+// Every newly registered candidate gets auto-enrolled in this free course
+// so there's something to see on first login instead of an empty
+// dashboard - "Free Data Analytics Course".
+const DEFAULT_FREE_COURSE_ID = "6a71aae9e184696405bfffe4";
+
+// Best-effort: a brand-new account should not fail to register just
+// because the demo-course auto-enroll hit an issue (e.g. that course was
+// deleted). Silently skip on any error.
+const enrollInDefaultCourse = async (userId) => {
+  try {
+    const alreadyEnrolled = await Enrollment.findOne({
+      user_id: userId,
+      course_id: DEFAULT_FREE_COURSE_ID,
+    });
+    if (alreadyEnrolled) return;
+
+    await Enrollment.create({
+      user_id: userId,
+      course_id: DEFAULT_FREE_COURSE_ID,
+      course_type: 1,
+      payment_status: 1,
+      amount: 0,
+      access_type: "lifetime",
+      status: 1,
+    });
+  } catch (error) {
+    console.error("Default course auto-enroll failed:", error.message);
+  }
+};
 
 // Best-effort: registration should not fail just because the welcome
 // email couldn't be sent. Never log the plaintext password.
@@ -532,6 +563,8 @@ exports.register = async (req, res) => {
     user.candidate_idno = await generateCandidateIdno(joinDate);
 
     await user.save();
+
+    await enrollInDefaultCourse(user._id);
 
     await sendPasswordEmail(user.c_email, password);
 
