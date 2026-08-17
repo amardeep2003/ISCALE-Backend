@@ -150,6 +150,12 @@ exports.updateCategory = async (req, res) => {
       category.m_category_icon = uploadedIcon.url;
 
       category.m_category_icon_public_id = uploadedIcon.public_id;
+    } else if (req.body.remove_category_icon === "true" || req.body.remove_category_icon === true) {
+      if (oldIconPublicId) await deleteFile(oldIconPublicId);
+
+      category.m_category_icon = "";
+
+      category.m_category_icon_public_id = "";
     }
 
     if (req.files?.category_banner?.[0]) {
@@ -158,6 +164,12 @@ exports.updateCategory = async (req, res) => {
       category.m_category_banner = uploadedBanner.url;
 
       category.m_category_banner_public_id = uploadedBanner.public_id;
+    } else if (req.body.remove_category_banner === "true" || req.body.remove_category_banner === true) {
+      if (oldBannerPublicId) await deleteFile(oldBannerPublicId);
+
+      category.m_category_banner = "";
+
+      category.m_category_banner_public_id = "";
     }
 
     // update fields

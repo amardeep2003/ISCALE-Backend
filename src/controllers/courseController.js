@@ -1564,9 +1564,15 @@ const updateCourse = async (req, res) => {
     // =========================
 
     if (body.m_course_trainee !== undefined) {
-      const traineeIds = Array.isArray(body.m_course_trainee)
+      const rawTraineeIds = Array.isArray(body.m_course_trainee)
         ? body.m_course_trainee
         : [body.m_course_trainee];
+
+      // The edit form always resends this field, even with no instructor
+      // selected (empty string) - that means "clear it", not an invalid id.
+      const traineeIds = rawTraineeIds.filter(
+        (id) => id !== undefined && id !== null && id !== "",
+      );
 
       const invalidIds = traineeIds.filter(
         (id) => !mongoose.Types.ObjectId.isValid(id),
