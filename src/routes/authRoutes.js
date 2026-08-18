@@ -10,6 +10,12 @@ const { registerMiddleware } = require("../middlewares/registrationMiddleware");
 router.post("/login", authController.login);
 router.post("/login-contact-password", authController.loginWithPassword);
 
+// OTP login for existing accounts only (the iScale mobile app) - no
+// self-registration path, see loginSendOtp/loginVerifyOtp for why this is
+// kept separate from the send-otp/verify-otp pair below.
+router.post("/login-send-otp", authController.loginSendOtp);
+router.post("/login-verify-otp", authController.loginVerifyOtp);
+
 
 
 

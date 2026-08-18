@@ -275,6 +275,12 @@ const getEnrolledCourseFullDetails = async (req, res) => {
 
       course,
 
+      enrollment: {
+        enrolled_on: enrollment.enrolled_on,
+        access_type: enrollment.access_type,
+        expiry_date: enrollment.expiry_date,
+      },
+
       subjects: subjectWiseData,
     });
   } catch (error) {

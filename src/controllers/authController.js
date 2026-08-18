@@ -209,6 +209,115 @@ exports.loginWithPassword = async (req, res) => {
   }
 };
 
+// ======================================
+// OTP LOGIN (existing accounts only - the iScale mobile app)
+// ======================================
+// Unlike checkMobile/verifyOtp above (registration flow: creates a
+// temp candidate for a brand-new number), these two only ever act on an
+// account that already exists and has already completed registration
+// (has a name) - the mobile app has no self-registration, so a number
+// with no matching account, or a temp/incomplete one, is rejected outright
+// instead of silently creating something.
+exports.loginSendOtp = async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    if (!mobile || String(mobile).length !== 10) {
+      return res.status(400).json({
+        status: false,
+        message: "A valid 10-digit mobile number is required",
+      });
+    }
+
+    const user = await Candidate.findOne({ c_contact: Number(mobile) });
+
+    if (!user || !user.c_first_name) {
+      return res.status(404).json({
+        status: false,
+        message: "No account found for this number",
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.c_user_otp = otp;
+    user.c_otp_expiry = new Date(Date.now() + 5 * 60 * 1000);
+    await user.save();
+
+    const message = `${otp} is the OTP to log in to your account. Do not share with anyone. - The iScale`;
+    await sendSms(message, mobile, "1307173398514201568");
+
+    return res.status(200).json({
+      status: true,
+      message: "OTP sent successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.loginVerifyOtp = async (req, res) => {
+  try {
+    const { mobile, otp } = req.body;
+
+    if (!mobile || !otp) {
+      return res.status(400).json({
+        status: false,
+        message: "Mobile number and OTP are required",
+      });
+    }
+
+    const user = await Candidate.findOne({ c_contact: Number(mobile) });
+
+    if (!user || !user.c_first_name) {
+      return res.status(404).json({
+        status: false,
+        message: "No account found for this number",
+      });
+    }
+
+    if (!user.c_user_otp || user.c_user_otp !== otp) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (!user.c_otp_expiry || user.c_otp_expiry < new Date()) {
+      return res.status(400).json({
+        status: false,
+        message: "OTP expired",
+      });
+    }
+
+    user.c_user_otp = null;
+    user.c_otp_expiry = null;
+    await user.save();
+
+    const token = generateTokenUser(user);
+
+    return res.status(200).json({
+      status: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.c_display_name,
+        email: user.c_email,
+        mobile: user.c_contact,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 exports.checkMobile = async (req, res) => {
   try {
     const { mobile } = req.body;
