@@ -159,6 +159,15 @@ const courseSchema = new mongoose.Schema(
       default: 1,
     },
 
+    // Whether this course shows up in the LMS course list (the iScale
+    // mobile app) that admins pick from when assigning courses to a
+    // student - separate from the web/app visibility flags above.
+    m_course_lms_status: {
+      type: Number,
+      enum: [0, 1],
+      default: 0,
+    },
+
     m_course_view: {
       type: Number,
       default: 0,

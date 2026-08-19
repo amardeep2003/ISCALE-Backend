@@ -4,6 +4,8 @@ const Candidate = require("../models/candidates");
 const State = require("../models/state");
 const City = require("../models/city");
 const Enrollment = require("../models/course_enrollment");
+const Course = require("../models/course");
+const generateCandidateIdno = require("../utils/generateCandidateIdno");
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
@@ -779,6 +781,216 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// ======================================
+// ADD STUDENT (admin-created, no self-registration needed)
+// ======================================
+// No password is set here - this account logs into the iScale mobile app
+// via OTP only (see authController.loginSendOtp/loginVerifyOtp), which
+// only requires c_first_name to be set, not a password.
+const addUser = async (req, res) => {
+  try {
+    const { fname, lname, mobile, email, gender } = req.body;
+
+    if (!fname || !mobile) {
+      return res.status(400).json({
+        status: false,
+        message: "Name and mobile number are required",
+      });
+    }
+
+    if (String(mobile).length !== 10) {
+      return res.status(400).json({
+        status: false,
+        message: "Mobile number must be 10 digits",
+      });
+    }
+
+    const existing = await Candidate.findOne({ c_contact: Number(mobile) });
+    if (existing) {
+      return res.status(400).json({
+        status: false,
+        message: "A student with this mobile number already exists",
+      });
+    }
+
+    if (email) {
+      const existingEmail = await Candidate.findOne({
+        c_email: email.toLowerCase(),
+      });
+      if (existingEmail) {
+        return res.status(400).json({
+          status: false,
+          message: "A student with this email already exists",
+        });
+      }
+    }
+
+    const joinDate = new Date();
+
+    const student = await Candidate.create({
+      c_first_name: fname,
+      c_last_name: lname || "",
+      c_display_name: fname,
+      c_email: email ? email.toLowerCase() : undefined,
+      c_contact: Number(mobile),
+      c_gender: gender || undefined,
+      c_mobile_verified: 1,
+      c_admin_verified: 1,
+      c_user_status: 1,
+      c_register_date: joinDate,
+      candidate_idno: await generateCandidateIdno(joinDate),
+    });
+
+    return res.status(201).json({
+      status: true,
+      message: "Student added successfully",
+      data: student,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
+// COURSE ASSIGNMENT (LMS)
+// ======================================
+
+const getAssignedCourses = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const enrollments = await Enrollment.find({ user_id: id })
+      .populate("course_id", "m_course_title m_course_banner m_course_type")
+      .sort({ enrolled_on: -1 });
+
+    return res.status(200).json({
+      status: true,
+      data: enrollments.filter((e) => e.course_id),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// Assigns one or more LMS courses to a student, granting lifetime access -
+// this is the admin-side equivalent of a purchase, skipping payment
+// entirely. Already-assigned courses are silently skipped rather than
+// erroring, so re-submitting a larger selection is safe.
+const assignCourses = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { course_ids } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid user id",
+      });
+    }
+
+    if (!Array.isArray(course_ids) || course_ids.length === 0) {
+      return res.status(400).json({
+        status: false,
+        message: "course_ids must be a non-empty array",
+      });
+    }
+
+    const student = await Candidate.findById(id);
+    if (!student) {
+      return res.status(404).json({
+        status: false,
+        message: "Student not found",
+      });
+    }
+
+    const alreadyEnrolled = await Enrollment.find({
+      user_id: id,
+      course_id: { $in: course_ids },
+    }).select("course_id");
+    const alreadyEnrolledIds = new Set(
+      alreadyEnrolled.map((e) => e.course_id.toString()),
+    );
+
+    const toAssign = course_ids.filter(
+      (cid) => !alreadyEnrolledIds.has(cid.toString()),
+    );
+
+    const courses = await Course.find({ _id: { $in: toAssign } }).select(
+      "m_course_type",
+    );
+    const courseMap = new Map(courses.map((c) => [c._id.toString(), c]));
+
+    const toCreate = toAssign
+      .filter((cid) => courseMap.has(cid.toString()))
+      .map((cid) => ({
+        user_id: id,
+        course_id: cid,
+        course_type: courseMap.get(cid.toString()).m_course_type,
+        payment_status: 1,
+        amount: 0,
+        access_type: "lifetime",
+        status: 1,
+      }));
+
+    const created = toCreate.length
+      ? await Enrollment.insertMany(toCreate)
+      : [];
+
+    return res.status(200).json({
+      status: true,
+      message: `${created.length} course${created.length === 1 ? "" : "s"} assigned`,
+      assigned: created.length,
+      skipped: course_ids.length - created.length,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+const removeCourseAssignment = async (req, res) => {
+  try {
+    const { id, courseId } = req.params;
+
+    const deleted = await Enrollment.findOneAndDelete({
+      user_id: id,
+      course_id: courseId,
+    });
+
+    if (!deleted) {
+      return res.status(404).json({
+        status: false,
+        message: "This student isn't assigned that course",
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Course access removed",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getSingleUser,
@@ -787,4 +999,8 @@ module.exports = {
   searchUsersForDropdown,
   toggleAdminVerified,
   toggleLifetimeAccess,
+  addUser,
+  getAssignedCourses,
+  assignCourses,
+  removeCourseAssignment,
 };

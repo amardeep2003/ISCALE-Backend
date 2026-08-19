@@ -18,6 +18,8 @@ const {
   getCourseById,
   getCourseDropdown,
   changeCourseStatus,
+  toggleLmsStatus,
+  getLmsCourses,
   appGetCourseTeamList,
   appGetCourseDetailsById,
   appGetTopTrendingCourses
@@ -69,6 +71,18 @@ router.patch(
   authMiddleware,
   adminMiddleware,
   changeCourseStatus,
+);
+router.patch(
+  "/lms-status/:id",
+  authMiddleware,
+  adminMiddleware,
+  toggleLmsStatus,
+);
+router.get(
+  "/lms-courses",
+  authMiddleware,
+  adminMiddleware,
+  getLmsCourses,
 );
 
 router.get("/public-all-courses", getAllCourses);

@@ -2155,6 +2155,61 @@ const changeCourseStatus = async (req, res) => {
   }
 };
 
+// Toggles whether this course appears in the LMS course list (the iScale
+// mobile app) that admins assign to students from.
+const toggleLmsStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const course = await Course.findById(id);
+
+    if (!course) {
+      return res.status(404).send({
+        status: false,
+        message: "Course not found",
+      });
+    }
+
+    course.m_course_lms_status = course.m_course_lms_status === 1 ? 0 : 1;
+
+    await course.save();
+
+    res.status(200).send({
+      status: true,
+      message: `LMS status changed to ${course.m_course_lms_status}`,
+      data: course.m_course_lms_status,
+    });
+  } catch (error) {
+    res.status(500).send({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// Courses available for admins to assign to a student on the LMS -
+// only ones explicitly flagged for it and still active.
+const getLmsCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({
+      m_course_lms_status: 1,
+      m_course_status: 1,
+    })
+      .select("m_course_title m_course_banner m_course_type")
+      .sort({ m_course_title: 1 });
+
+    res.status(200).send({
+      status: true,
+      data: courses,
+    });
+  } catch (error) {
+    res.status(500).send({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 //===================================================================================================================
 
 const appGetCourseTeamList = async (req, res) => {
@@ -2449,6 +2504,8 @@ module.exports = {
   getCourseById,
   getCourseDropdown,
   changeCourseStatus,
+  toggleLmsStatus,
+  getLmsCourses,
 
   appGetCourseTeamList,
   appGetCourseDetailsById,

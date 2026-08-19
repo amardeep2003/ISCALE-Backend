@@ -9,6 +9,10 @@ const {
   deleteUser,
   toggleAdminVerified,
   toggleLifetimeAccess,
+  addUser,
+  getAssignedCourses,
+  assignCourses,
+  removeCourseAssignment,
 } = require("../controllers/appUserController");
 const { candidateUpload } = require("../middlewares/uploadMiddleware");
 const { authMiddleware } = require("../middlewares/authMiddleware");
@@ -16,7 +20,29 @@ const { adminMiddleware } = require("../middlewares/adminMiddleware");
 
 router.get("/all", authMiddleware, adminMiddleware, getAllUsers);
 
+router.post("/add", authMiddleware, adminMiddleware, addUser);
+
 router.get("/single/:id", authMiddleware, adminMiddleware, getSingleUser);
+
+// LMS course assignment for a student
+router.get(
+  "/:id/courses",
+  authMiddleware,
+  adminMiddleware,
+  getAssignedCourses,
+);
+router.post(
+  "/:id/assign-courses",
+  authMiddleware,
+  adminMiddleware,
+  assignCourses,
+);
+router.delete(
+  "/:id/courses/:courseId",
+  authMiddleware,
+  adminMiddleware,
+  removeCourseAssignment,
+);
 
 router.put(
   "/edit/:id",
