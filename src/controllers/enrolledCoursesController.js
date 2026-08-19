@@ -445,7 +445,12 @@ const appGetMyCourses = async (req, res) => {
 
           remaining_days: remainingDays,
 
+          access_type: enrollment.access_type,
+          expiry_date: enrollment.expiry_date,
+
           total_subjects: totalSubjects,
+          total_lectures: totalLectures,
+          completed_lectures: completedLectures,
 
           progress: progress,
         };
