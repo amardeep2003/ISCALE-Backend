@@ -222,6 +222,12 @@ const getEnrolledCourseFullDetails = async (req, res) => {
 
           lecture_subtype: lecture.ml_stype,
 
+          // "1" = YouTube/link (ml_video_id), "2" = VdoCipher (fetched
+          // server-side via /api/video/play_video using this lecture's id) -
+          // see topicsController's create/update for how these two are kept
+          // mutually exclusive.
+          lecture_yt_type: lecture.ml_yt_type,
+
           lecture_video_id: lecture.ml_video_id,
 
           lecture_file: lecture.ml_file,
