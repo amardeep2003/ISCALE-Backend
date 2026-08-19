@@ -244,7 +244,12 @@ exports.loginSendOtp = async (req, res) => {
     user.c_otp_expiry = new Date(Date.now() + 5 * 60 * 1000);
     await user.save();
 
-    const message = `${otp} is the OTP to log in to your account. Do not share with anyone. - The iScale`;
+    // Must match the DLT-registered template text for this ID exactly
+    // (word-for-word, only the OTP varies) - a different wording under the
+    // same template ID gets silently dropped by the carrier even though
+    // MSG91's API reports success, which is why this needs to be identical
+    // to the OTP message used everywhere else for this same DLT_TE_ID.
+    const message = `${otp} is the OTP to authenticate login credential. Do not share with anyone. - The iScale`;
     await sendSms(message, mobile, "1307173398514201568");
 
     return res.status(200).json({
