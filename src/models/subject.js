@@ -35,7 +35,11 @@ const ModuleSchema = new mongoose.Schema({
   m_subject_status: {
     type: Number,
     enum: [0, 1], // 0=inactive, 1=active
-    default: 1, 
+    default: 1,
+  },
+  m_subject_seq: {
+    type: Number,
+    default: 0,
   },
   code: {
     type: String,

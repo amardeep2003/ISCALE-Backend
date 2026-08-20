@@ -31,6 +31,8 @@ const storage = new CloudinaryStorage({
       folder = "courses/fee-structure";
     } else if (file.fieldname === "m_course_brochure") {
       folder = "courses/brochure";
+    } else if (file.fieldname === "m_course_partner_logos") {
+      folder = "courses/partner-logos";
     } else if (file.fieldname === "m_feature_image") {
       folder = "features";
     } else if (file.fieldname === "c_tool_img") {
@@ -173,6 +175,15 @@ const fileFilter = (req, file, cb) => {
         new Error("Only JPEG, JPG, PNG images allowed for course banner"),
         false,
       );
+    }
+  }
+
+  // course partner/collaboration logos - only images
+  else if (file.fieldname === "m_course_partner_logos") {
+    if (allowedImageTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files allowed for partner logos"), false);
     }
   }
 
@@ -564,7 +575,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 10MB max
+    fileSize: 100 * 1024 * 1024, // 100MB max
   },
 });
 
@@ -584,6 +595,7 @@ const courseUpload = upload.fields([
   { name: "m_course_pdf", maxCount: 1 }, // Course PDF (Optional)
   { name: "m_course_feestructure", maxCount: 1 }, // Fee Structure (Optional)
   { name: "m_course_brochure", maxCount: 1 }, // Brochure (Optional)
+  { name: "m_course_partner_logos", maxCount: 10 }, // Collaboration/Certification partner logos (Optional)
 ]);
 
 // const featureUpload = upload.fields([{ name: "m_feature_image", maxCount: 1 }]);

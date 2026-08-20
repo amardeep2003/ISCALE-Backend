@@ -20,7 +20,7 @@ const addSubject = async (req, res) => {
       m_subject_course,
       m_subject_desc,
       m_subject_status,
-      // m_subject_seq,
+      m_subject_seq,
       // m_subject_for,
     } = req.body;
 
@@ -61,8 +61,8 @@ const addSubject = async (req, res) => {
       m_subject_icon: icon,
       m_subject_icon_public_id: iconPublicId,
       m_subject_desc,
-      m_subject_status: m_subject_status ? Number(m_subject_status) : 1,
-      // m_subject_seq: m_subject_seq ? Number(m_subject_seq) : null,
+      m_subject_status: m_subject_status !== undefined ? Number(m_subject_status) : 1,
+      m_subject_seq: m_subject_seq !== undefined ? Number(m_subject_seq) : 0,
       // m_subject_for: m_subject_for ? Number(m_subject_for) : 1,
     });
 
@@ -174,6 +174,8 @@ const getSubjectsByCourse = async (req, res) => {
       m_subject_course: subject.m_subject_course,
       m_subject_title: subject.m_subject_title,
       m_subject_desc: subject.m_subject_desc,
+      m_subject_status: subject.m_subject_status,
+      m_subject_seq: subject.m_subject_seq,
       code: subject.code,
       is_writing: subject.is_writing,
       created_at: subject.created_at,

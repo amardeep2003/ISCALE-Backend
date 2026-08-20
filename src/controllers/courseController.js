@@ -37,6 +37,26 @@ const parseOptionalNumber = (value) => {
   return Number.isFinite(number) ? { value: number } : { error: true };
 };
 
+// Fee tiers arrive as a JSON string over multipart/form-data (e.g. "Basic"/"Premium"/"Pro").
+const parseFeeTiers = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t) => t && t.tier_name)
+      .slice(0, 3)
+      .map((t) => ({
+        tier_name: String(t.tier_name).trim(),
+        price: Number(t.price) || 0,
+        offer_price: Number(t.offer_price) || 0,
+      }));
+  } catch {
+    return [];
+  }
+};
+
 // ADD COURSE
 const addCourse = async (req, res) => {
   const uploadedFiles = [];
@@ -59,6 +79,14 @@ const addCourse = async (req, res) => {
 
   if (feeStructure?.public_id) uploadedFiles.push(feeStructure.public_id);
 
+  const partnerLogos = (req.files?.m_course_partner_logos || [])
+    .map((file) => {
+      const extracted = extractUploadedFile(file);
+      if (extracted?.public_id) uploadedFiles.push(extracted.public_id);
+      return extracted;
+    })
+    .filter(Boolean);
+
   try {
     const {
       m_course_lang,
@@ -73,6 +101,8 @@ const addCourse = async (req, res) => {
       m_course_type,
       m_course_price,
       m_course_offer_price,
+      m_course_pricing_mode,
+      m_course_fee_tiers,
       m_course_access_type,
       m_course_access_days,
 
@@ -418,6 +448,13 @@ const addCourse = async (req, res) => {
       m_course_type: m_course_type !== undefined ? Number(m_course_type) : null,
       m_course_price: Number(m_course_price) || 0,
       m_course_offer_price: Number(m_course_offer_price) || 0,
+      m_course_pricing_mode: Number(m_course_pricing_mode) === 2 ? 2 : 1,
+      m_course_fee_tiers: parseFeeTiers(m_course_fee_tiers),
+
+      m_course_partner_logos: partnerLogos.map((f) => ({
+        url: f.url,
+        public_id: f.public_id,
+      })),
 
       m_course_access_type: m_course_access_type || "lifetime",
       m_course_access_days:
@@ -607,6 +644,9 @@ const getAllCourses = async (req, res) => {
         price: course.m_course_type === 1 ? "N/A" : course.m_course_price,
         offer_price:
           course.m_course_type === 1 ? "N/A" : course.m_course_offer_price,
+        pricing_mode: course.m_course_pricing_mode || 1,
+        fee_tiers: course.m_course_pricing_mode === 2 ? (course.m_course_fee_tiers || []) : [],
+        partner_logos: course.m_course_partner_logos || [],
         status: course.m_course_status === 1 ? 1 : 0,
         slug: course.m_course_slug,
 
@@ -1200,6 +1240,14 @@ const updateCourse = async (req, res) => {
     uploadedFiles.push(feeStructure.public_id);
   }
 
+  const newPartnerLogos = (req.files?.m_course_partner_logos || [])
+    .map((file) => {
+      const extracted = extractUploadedFile(file);
+      if (extracted?.public_id) uploadedFiles.push(extracted.public_id);
+      return extracted;
+    })
+    .filter(Boolean);
+
   try {
     const { id } = req.params;
     const body = req.body;
@@ -1441,6 +1489,15 @@ const updateCourse = async (req, res) => {
       updateData.m_course_offer_price = offerPrice;
     }
 
+    if (isValid(body.m_course_pricing_mode)) {
+      updateData.m_course_pricing_mode =
+        Number(body.m_course_pricing_mode) === 2 ? 2 : 1;
+    }
+
+    if (body.m_course_fee_tiers !== undefined) {
+      updateData.m_course_fee_tiers = parseFeeTiers(body.m_course_fee_tiers);
+    }
+
     // =========================
     // Access Type
     // =========================
@@ -1671,6 +1728,34 @@ const updateCourse = async (req, res) => {
       updateData.m_course_feestructure_public_id = feeStructure.public_id;
     }
 
+    // Partner/collaboration logos: keep existing ones (minus any the admin
+    // removed), append newly uploaded ones.
+    let removedLogoPublicIds = [];
+    if (newPartnerLogos.length || body.m_course_partner_logos_remove) {
+      let removeIds = [];
+      if (body.m_course_partner_logos_remove) {
+        try {
+          removeIds = JSON.parse(body.m_course_partner_logos_remove);
+          if (!Array.isArray(removeIds)) removeIds = [];
+        } catch {
+          removeIds = [];
+        }
+      }
+
+      const existingLogos = course.m_course_partner_logos || [];
+      const keptLogos = existingLogos.filter(
+        (logo) => !removeIds.includes(logo.public_id),
+      );
+      removedLogoPublicIds = existingLogos
+        .filter((logo) => removeIds.includes(logo.public_id))
+        .map((logo) => logo.public_id);
+
+      updateData.m_course_partner_logos = [
+        ...keptLogos,
+        ...newPartnerLogos.map((f) => ({ url: f.url, public_id: f.public_id })),
+      ];
+    }
+
     updateData.m_course_modified = new Date();
 
     // =========================
@@ -1712,6 +1797,14 @@ const updateCourse = async (req, res) => {
         await deleteFile(oldFee);
       } catch (err) {
         console.error("Old fee structure delete failed:", err.message);
+      }
+    }
+
+    for (const publicId of removedLogoPublicIds) {
+      try {
+        await deleteFile(publicId);
+      } catch (err) {
+        console.error("Old partner logo delete failed:", err.message);
       }
     }
 
@@ -1979,16 +2072,12 @@ const getCourseById = async (req, res) => {
     const course = await Course.findById(id).populate({
       path: "m_course_trainee",
       select: `
-    member_name
-    member_position
-    member_image
-    member_expertise
-    member_experience
-    member_linkedin
-    member_bio
-    member_type
-    member_status
-    member_order
+    m_instructor_name
+    m_instructor_profile
+    m_instructor_bio
+    m_instructor_experience
+    m_linkedin_profile
+    m_instructor_status
   `,
     });
 
@@ -2030,6 +2119,9 @@ const getCourseById = async (req, res) => {
       course_type: course.m_course_type === 1 ? 1 : 2,
       price: course.m_course_price,
       offer_price: course.m_course_offer_price,
+      pricing_mode: course.m_course_pricing_mode || 1,
+      fee_tiers: course.m_course_fee_tiers || [],
+      partner_logos: course.m_course_partner_logos || [],
 
       status: course.m_course_status === 1 ? 1 : 0,
       status_web: course.m_course_status_web === 1 ? 1 : 0,
@@ -2040,13 +2132,19 @@ const getCourseById = async (req, res) => {
       popular: course.m_course_popular,
       recommended: course.m_course_recomended,
 
-      trainees: (course.m_course_trainee || []).map((t) => ({
-        trainee_id: t._id,
-        name: t.member_name,
-        image: t.member_image,
-        linkedin: t.member_linkedin,
-      })),
+      lang: course.m_course_lang,
+      order: course.m_course_order,
 
+      trainees: (course.m_course_trainee || [])
+        .filter(Boolean)
+        .map((t) => ({
+          trainee_id: t._id,
+          name: t.m_instructor_name,
+          image: t.m_instructor_profile,
+          linkedin: t.m_linkedin_profile,
+        })),
+
+      view: course.m_course_view,
       views: course.m_course_view,
       reviews: course.m_course_reviews,
       rating: course.m_course_rating,

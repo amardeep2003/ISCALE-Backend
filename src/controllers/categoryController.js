@@ -360,6 +360,48 @@ exports.appGetCategories = async (req, res) => {
   }
 };
 
+// Public web frontend: no auth required, sorted by admin-configured m_category_order
+exports.publicGetCategories = async (req, res) => {
+  try {
+    const categories = await Category.find({
+      m_category_for: 1, // Course Category
+      m_category_status: 1,
+    }).sort({ m_category_order: 1 });
+
+    const result = await Promise.all(
+      categories.map(async (category) => {
+        const totalCourses = await Course.countDocuments({
+          m_course_category: category._id,
+          m_course_status: 1,
+        });
+
+        return {
+          category_id: category._id,
+          category_name: category.m_category_name,
+          category_order: category.m_category_order,
+          total_course: String(totalCourses),
+          category_icon: category.m_category_icon || "",
+          category_banner: category.m_category_banner || "",
+          category_image:
+            category.m_category_banner || category.m_category_icon || "",
+        };
+      }),
+    );
+
+    return res.status(200).json({
+      response: "success",
+      Category: result,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      response: "error",
+      message: error.message,
+    });
+  }
+};
+
 exports.appGetCoursesByCategory = async (req, res) => {
   try {
     const { category_id } = req.body;

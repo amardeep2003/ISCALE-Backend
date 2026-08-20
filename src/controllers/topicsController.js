@@ -26,20 +26,26 @@ const addTopic = async (req, res) => {
       });
     }
 
-    // YouTube validation
-    if (ml_yt_type == "1" && !ml_video_id) {
-      return res.status(400).json({
-        status: false,
-        message: "YouTube Video ID is required",
-      });
-    }
+    // Video ID is only mandatory for actual Video-type topics.
+    // PDF/Link topics send ml_yt_type too (frontend default), but shouldn't be blocked by it.
+    const isVideoTopic = ml_type == "1" || ml_type == "Video";
 
-    // VdoCipher validation
-    if (ml_yt_type == "2" && !ml_vdocipher_id) {
-      return res.status(400).json({
-        status: false,
-        message: "VdoCipher Video ID is required",
-      });
+    if (isVideoTopic) {
+      // YouTube validation
+      if (ml_yt_type == "1" && !ml_video_id) {
+        return res.status(400).json({
+          status: false,
+          message: "YouTube Video ID is required",
+        });
+      }
+
+      // VdoCipher validation
+      if (ml_yt_type == "2" && !ml_vdocipher_id) {
+        return res.status(400).json({
+          status: false,
+          message: "VdoCipher Video ID is required",
+        });
+      }
     }
 
     const subject = await Subject.findById(ml_subject);
@@ -189,7 +195,12 @@ const updateTopic = async (req, res) => {
       ml_vdocipher_id,
     } = req.body;
 
-    if (ml_yt_type !== undefined) {
+    // Effective type after this update (falls back to the topic's existing type
+    // when ml_type isn't part of this particular save, e.g. a PDF-only update).
+    const effectiveType = ml_type !== undefined ? ml_type : topic.ml_type;
+    const isVideoTopic = effectiveType == "1" || effectiveType == "Video";
+
+    if (isVideoTopic && ml_yt_type !== undefined) {
       if (ml_yt_type == "1" && !ml_video_id) {
         return res.status(400).json({
           status: false,
@@ -211,7 +222,7 @@ const updateTopic = async (req, res) => {
     if (ml_type !== undefined) topic.ml_type = ml_type;
     if (ml_stype !== undefined) topic.ml_stype = ml_stype;
     // if (ml_video_id) topic.ml_video_id = ml_video_id;
-    if (ml_yt_type !== undefined) {
+    if (isVideoTopic && ml_yt_type !== undefined) {
       topic.ml_yt_type = ml_yt_type;
 
       if (ml_yt_type == "1") {

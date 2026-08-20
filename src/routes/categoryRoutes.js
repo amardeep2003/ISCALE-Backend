@@ -9,7 +9,8 @@ const {
   deleteCategory,
   appGetCategoryWiseCourses,
   appGetCategories,
-  appGetCoursesByCategory
+  appGetCoursesByCategory,
+  publicGetCategories
 } = require("../controllers/categoryController");
 const { adminMiddleware } = require("../middlewares/adminMiddleware");
 const { authMiddleware } = require("../middlewares/authMiddleware");
@@ -52,6 +53,10 @@ router.delete(
   adminMiddleware,
   deleteCategory,
 );
+
+// Public web frontend (no auth) ==========================================================================================================
+
+router.get("/public-categories", publicGetCategories);
 
 // Mobile Apis=============================================================================================================================
 

@@ -122,6 +122,34 @@ const courseSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // 1 = single price (m_course_price/m_course_offer_price), 2 = tiered pricing (m_course_fee_tiers)
+    m_course_pricing_mode: {
+      type: Number,
+      enum: [1, 2],
+      default: 1,
+    },
+
+    m_course_fee_tiers: {
+      type: [
+        {
+          tier_name: { type: String, trim: true },
+          price: { type: Number, min: 0 },
+          offer_price: { type: Number, min: 0 },
+        },
+      ],
+      default: [],
+    },
+
+    m_course_partner_logos: {
+      type: [
+        {
+          url: { type: String },
+          public_id: { type: String },
+        },
+      ],
+      default: [],
+    },
+
     m_course_modified: {
       type: Date,
       default: Date.now,
@@ -230,7 +258,7 @@ const courseSchema = new mongoose.Schema(
       type: [
         {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "our_teams",
+          ref: "instructor",
         },
       ],
       default: [],
