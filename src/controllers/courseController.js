@@ -289,7 +289,11 @@ const addCourse = async (req, res) => {
     }
 
     // PRICE VALIDATION
-    if (Number(m_course_type) === 2) {
+    // Tiered pricing (mode 2) carries its real prices in m_course_fee_tiers,
+    // so the single m_course_price field is legitimately empty/0 there.
+    const isTieredPricing = Number(m_course_pricing_mode) === 2;
+
+    if (Number(m_course_type) === 2 && !isTieredPricing) {
       if (!m_course_price || Number(m_course_price) <= 0) {
         await rollbackUploadedFiles(uploadedFiles);
 
@@ -300,7 +304,22 @@ const addCourse = async (req, res) => {
       }
     }
 
+    if (Number(m_course_type) === 2 && isTieredPricing) {
+      const tiers = parseFeeTiers(m_course_fee_tiers);
+      const hasValidTier = tiers.some((t) => Number(t.price) > 0);
+
+      if (!hasValidTier) {
+        await rollbackUploadedFiles(uploadedFiles);
+
+        return res.status(400).json({
+          status: false,
+          message: "At least one pricing tier with a price is required",
+        });
+      }
+    }
+
     if (
+      !isTieredPricing &&
       m_course_offer_price &&
       m_course_price &&
       Number(m_course_offer_price) > Number(m_course_price)
@@ -1463,7 +1482,15 @@ const updateCourse = async (req, res) => {
       ? Number(body.m_course_offer_price)
       : course.m_course_offer_price;
 
-    if (finalCourseType === 2 && actualPrice <= 0) {
+    // Tiered pricing (mode 2) carries its real prices in m_course_fee_tiers,
+    // so the single m_course_price/offer_price fields are legitimately
+    // empty/0 there - skip the single-price checks in that case.
+    const finalPricingMode = isValid(body.m_course_pricing_mode)
+      ? Number(body.m_course_pricing_mode)
+      : course.m_course_pricing_mode || 1;
+    const isTieredPricing = finalPricingMode === 2;
+
+    if (finalCourseType === 2 && !isTieredPricing && actualPrice <= 0) {
       await rollbackUploadedFiles(uploadedFiles);
 
       return res.status(400).json({
@@ -1472,7 +1499,23 @@ const updateCourse = async (req, res) => {
       });
     }
 
-    if (offerPrice > actualPrice) {
+    if (finalCourseType === 2 && isTieredPricing) {
+      const tiers = isValid(body.m_course_fee_tiers)
+        ? parseFeeTiers(body.m_course_fee_tiers)
+        : course.m_course_fee_tiers || [];
+      const hasValidTier = tiers.some((t) => Number(t.price) > 0);
+
+      if (!hasValidTier) {
+        await rollbackUploadedFiles(uploadedFiles);
+
+        return res.status(400).json({
+          status: false,
+          message: "At least one pricing tier with a price is required",
+        });
+      }
+    }
+
+    if (!isTieredPricing && offerPrice > actualPrice) {
       await rollbackUploadedFiles(uploadedFiles);
 
       return res.status(400).json({
