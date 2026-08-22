@@ -167,6 +167,12 @@ const courseSchema = new mongoose.Schema(
       enum: [0, 1], // 0-No, 1-Yes
     },
 
+    m_course_lifetime: {
+      type: Number,
+      default: 0,
+      enum: [0, 1], // 0-No, 1-Yes
+    },
+
     m_course_keyword: {
       type: String,
       default: null,

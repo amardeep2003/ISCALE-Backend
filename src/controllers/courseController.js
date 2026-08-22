@@ -108,6 +108,7 @@ const addCourse = async (req, res) => {
 
       m_course_popular,
       m_course_recomended,
+      m_course_lifetime,
       m_course_keyword,
       m_course_status,
       m_course_status_web,
@@ -483,6 +484,7 @@ const addCourse = async (req, res) => {
 
       m_course_popular: Number(m_course_popular) || 0,
       m_course_recomended: Number(m_course_recomended) || 0,
+      m_course_lifetime: Number(m_course_lifetime) || 0,
       m_course_keyword: m_course_keyword || null,
 
       m_course_status: Number(m_course_status ?? 1),
@@ -1593,6 +1595,10 @@ const updateCourse = async (req, res) => {
       updateData.m_course_recomended = Number(body.m_course_recomended);
     }
 
+    if (isValid(body.m_course_lifetime)) {
+      updateData.m_course_lifetime = Number(body.m_course_lifetime);
+    }
+
     if (isValid(body.m_course_keyword)) {
       updateData.m_course_keyword = body.m_course_keyword;
     }
@@ -2174,6 +2180,7 @@ const getCourseById = async (req, res) => {
 
       popular: course.m_course_popular,
       recommended: course.m_course_recomended,
+      lifetime: course.m_course_lifetime,
 
       lang: course.m_course_lang,
       order: course.m_course_order,
