@@ -10,6 +10,7 @@ const {
   toggleAdminVerified,
   toggleLifetimeAccess,
   addUser,
+  setLmsStatus,
   getAssignedCourses,
   assignCourses,
   removeCourseAssignment,
@@ -70,6 +71,14 @@ router.patch(
   authMiddleware,
   adminMiddleware,
   toggleLifetimeAccess,
+);
+
+// Registers/deactivates an account in the LMS module (see setLmsStatus).
+router.patch(
+  "/lms-status/:id",
+  authMiddleware,
+  adminMiddleware,
+  setLmsStatus,
 );
 
 module.exports = router;

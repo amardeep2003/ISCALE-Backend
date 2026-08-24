@@ -238,6 +238,16 @@ exports.loginSendOtp = async (req, res) => {
       });
     }
 
+    // Only accounts explicitly deactivated from the LMS module (is_lms_student
+    // === 0) are blocked here - undefined (never touched by LMS) or 1 (active
+    // LMS student) both log in normally, same as any other account.
+    if (user.is_lms_student === 0) {
+      return res.status(403).json({
+        status: false,
+        message: "This account has been deactivated",
+      });
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     user.c_user_otp = otp;
@@ -281,6 +291,13 @@ exports.loginVerifyOtp = async (req, res) => {
       return res.status(404).json({
         status: false,
         message: "No account found for this number",
+      });
+    }
+
+    if (user.is_lms_student === 0) {
+      return res.status(403).json({
+        status: false,
+        message: "This account has been deactivated",
       });
     }
 

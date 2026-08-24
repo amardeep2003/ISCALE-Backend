@@ -40,6 +40,7 @@ const getAllUsers = async (req, res) => {
       country,
       state,
       city,
+      lms_only,
     } = req.query;
 
     page = Number(page);
@@ -143,6 +144,12 @@ const getAllUsers = async (req, res) => {
       filter.c_current_city_name = { $regex: `^${city}$`, $options: "i" };
     }
 
+    // The LMS student list only shows accounts actively registered for it -
+    // the general App Users page (no lms_only param) still shows everyone.
+    if (isValidValue(lms_only) && Number(lms_only) === 1) {
+      filter.is_lms_student = 1;
+    }
+
     // ======================================
     // TOTAL
     // ======================================
@@ -170,6 +177,7 @@ const getAllUsers = async (req, res) => {
         c_current_state_name
         c_current_city_name
         mobile_app_lifetime_access
+        is_lms_student
       `,
       )
       // _id as the primary sort key (not c_register_date): it's never
@@ -839,11 +847,65 @@ const addUser = async (req, res) => {
       c_user_status: 1,
       c_register_date: joinDate,
       candidate_idno: await generateCandidateIdno(joinDate),
+      is_lms_student: 1,
     });
 
     return res.status(201).json({
       status: true,
       message: "Student added successfully",
+      data: student,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// Registers an existing candidate into the LMS module (is_lms_student: 1,
+// used when picking "Existing iScale Student" in Add Student), or
+// deactivates one out of it (is_lms_student: 0, used by the LMS list's
+// Delete action - blocks their login without touching their account or
+// enrollment history, see authController.loginSendOtp/loginVerifyOtp).
+const setLmsStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_lms_student } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid user id",
+      });
+    }
+
+    if (![0, 1].includes(Number(is_lms_student))) {
+      return res.status(400).json({
+        status: false,
+        message: "is_lms_student must be 0 or 1",
+      });
+    }
+
+    const student = await Candidate.findByIdAndUpdate(
+      id,
+      { is_lms_student: Number(is_lms_student) },
+      { new: true },
+    );
+
+    if (!student) {
+      return res.status(404).json({
+        status: false,
+        message: "Student not found",
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message:
+        Number(is_lms_student) === 1
+          ? "Student registered for LMS"
+          : "Student removed from LMS",
       data: student,
     });
   } catch (error) {
@@ -1029,6 +1091,7 @@ module.exports = {
   toggleAdminVerified,
   toggleLifetimeAccess,
   addUser,
+  setLmsStatus,
   getAssignedCourses,
   assignCourses,
   removeCourseAssignment,
