@@ -272,13 +272,12 @@ const candidateSchema = new mongoose.Schema({
   // unrelated to is_subscribe above (that field is currently unused).
   mobile_app_lifetime_access: { type: Boolean, default: false },
 
-  // Admin LMS module (Users & Teams > LMS): tri-state, deliberately with no
-  // default. undefined = never touched by LMS (the vast majority of
-  // accounts - self-registered/normal users), unaffected by any of this.
-  // 1 = actively registered for LMS (shows in the LMS student list).
-  // 0 = explicitly removed from LMS ("deleted" from that list) - login is
-  // blocked for these specifically (see authController.loginSendOtp/
-  // loginVerifyOtp), without touching accounts that were never in LMS.
+  // Admin LMS module (Users & Teams > LMS): the iScale mobile app is
+  // LMS-only, so login (authController.loginSendOtp/loginVerifyOtp)
+  // requires this to be exactly 1. undefined = never added to LMS, 0 =
+  // explicitly removed ("deleted" from the LMS list) - both are blocked
+  // the same way; only 1 (actively registered, shown in the LMS student
+  // list) can log in.
   is_lms_student: { type: Number, enum: [0, 1] },
 
   // the iScale mobile app (face-lock): the one enrolled face for this

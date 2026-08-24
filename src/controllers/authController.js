@@ -238,13 +238,13 @@ exports.loginSendOtp = async (req, res) => {
       });
     }
 
-    // Only accounts explicitly deactivated from the LMS module (is_lms_student
-    // === 0) are blocked here - undefined (never touched by LMS) or 1 (active
-    // LMS student) both log in normally, same as any other account.
-    if (user.is_lms_student === 0) {
+    // theIscale mobile app is LMS-only: only accounts actively registered
+    // for LMS (is_lms_student === 1) can log in - covers both accounts
+    // never added to LMS (undefined) and ones explicitly removed (0).
+    if (user.is_lms_student !== 1) {
       return res.status(403).json({
         status: false,
-        message: "This account has been deactivated",
+        message: "This account is not registered for LMS access",
       });
     }
 
@@ -294,10 +294,10 @@ exports.loginVerifyOtp = async (req, res) => {
       });
     }
 
-    if (user.is_lms_student === 0) {
+    if (user.is_lms_student !== 1) {
       return res.status(403).json({
         status: false,
-        message: "This account has been deactivated",
+        message: "This account is not registered for LMS access",
       });
     }
 
