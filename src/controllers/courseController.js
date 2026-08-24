@@ -2336,11 +2336,11 @@ const toggleLmsStatus = async (req, res) => {
 };
 
 // Courses available for admins to assign to a student on the LMS -
-// only ones explicitly flagged for it and still active.
+// only ones toggled "Add to lifetime courses" and still active.
 const getLmsCourses = async (req, res) => {
   try {
     const courses = await Course.find({
-      m_course_lms_status: 1,
+      m_course_lifetime: 1,
       m_course_status: 1,
     })
       .select("m_course_title m_course_banner m_course_type")

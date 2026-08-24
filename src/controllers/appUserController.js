@@ -885,14 +885,22 @@ const getAssignedCourses = async (req, res) => {
   }
 };
 
-// Assigns one or more LMS courses to a student, granting lifetime access -
-// this is the admin-side equivalent of a purchase, skipping payment
-// entirely. Already-assigned courses are silently skipped rather than
-// erroring, so re-submitting a larger selection is safe.
+// Assigns one or more LMS courses to a student - this is the admin-side
+// equivalent of a purchase, skipping payment entirely. Each course can
+// independently be lifetime access or time-limited (access_days from
+// today). Re-submitting an already-assigned course updates its access
+// type/expiry instead of erroring, so changing an existing assignment's
+// duration is just calling this again.
 const assignCourses = async (req, res) => {
   try {
     const { id } = req.params;
-    const { course_ids } = req.body;
+    // assignments: [{ course_id, access_type: 'lifetime'|'limited', access_days }]
+    // course_ids (legacy): plain array, always assigned as lifetime.
+    const assignments = Array.isArray(req.body.assignments)
+      ? req.body.assignments
+      : (Array.isArray(req.body.course_ids) ? req.body.course_ids : []).map(
+          (cid) => ({ course_id: cid, access_type: "lifetime" }),
+        );
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -901,11 +909,26 @@ const assignCourses = async (req, res) => {
       });
     }
 
-    if (!Array.isArray(course_ids) || course_ids.length === 0) {
+    if (assignments.length === 0) {
       return res.status(400).json({
         status: false,
-        message: "course_ids must be a non-empty array",
+        message: "At least one course assignment is required",
       });
+    }
+
+    for (const a of assignments) {
+      if (!mongoose.Types.ObjectId.isValid(a.course_id)) {
+        return res.status(400).json({
+          status: false,
+          message: `Invalid course id: ${a.course_id}`,
+        });
+      }
+      if (a.access_type === "limited" && !(Number(a.access_days) > 0)) {
+        return res.status(400).json({
+          status: false,
+          message: "access_days is required for time-limited access",
+        });
+      }
     }
 
     const student = await Candidate.findById(id);
@@ -916,44 +939,50 @@ const assignCourses = async (req, res) => {
       });
     }
 
-    const alreadyEnrolled = await Enrollment.find({
-      user_id: id,
-      course_id: { $in: course_ids },
-    }).select("course_id");
-    const alreadyEnrolledIds = new Set(
-      alreadyEnrolled.map((e) => e.course_id.toString()),
-    );
-
-    const toAssign = course_ids.filter(
-      (cid) => !alreadyEnrolledIds.has(cid.toString()),
-    );
-
-    const courses = await Course.find({ _id: { $in: toAssign } }).select(
+    const courseIds = assignments.map((a) => a.course_id);
+    const courses = await Course.find({ _id: { $in: courseIds } }).select(
       "m_course_type",
     );
     const courseMap = new Map(courses.map((c) => [c._id.toString(), c]));
 
-    const toCreate = toAssign
-      .filter((cid) => courseMap.has(cid.toString()))
-      .map((cid) => ({
-        user_id: id,
-        course_id: cid,
-        course_type: courseMap.get(cid.toString()).m_course_type,
-        payment_status: 1,
-        amount: 0,
-        access_type: "lifetime",
-        status: 1,
-      }));
+    let assignedCount = 0;
 
-    const created = toCreate.length
-      ? await Enrollment.insertMany(toCreate)
-      : [];
+    for (const a of assignments) {
+      const course = courseMap.get(a.course_id.toString());
+      if (!course) continue;
+
+      const accessType = a.access_type === "limited" ? "limited" : "lifetime";
+      const expiryDate =
+        accessType === "limited"
+          ? new Date(Date.now() + Number(a.access_days) * 24 * 60 * 60 * 1000)
+          : null;
+
+      await Enrollment.findOneAndUpdate(
+        { user_id: id, course_id: a.course_id },
+        {
+          $set: {
+            access_type: accessType,
+            expiry_date: expiryDate,
+            status: 1,
+          },
+          $setOnInsert: {
+            user_id: id,
+            course_id: a.course_id,
+            course_type: course.m_course_type,
+            payment_status: 1,
+            amount: 0,
+          },
+        },
+        { upsert: true },
+      );
+
+      assignedCount += 1;
+    }
 
     return res.status(200).json({
       status: true,
-      message: `${created.length} course${created.length === 1 ? "" : "s"} assigned`,
-      assigned: created.length,
-      skipped: course_ids.length - created.length,
+      message: `${assignedCount} course${assignedCount === 1 ? "" : "s"} assigned`,
+      assigned: assignedCount,
     });
   } catch (error) {
     return res.status(500).json({
