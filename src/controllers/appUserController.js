@@ -907,8 +907,8 @@ const setLmsStatus = async (req, res) => {
       status: true,
       message:
         Number(is_lms_student) === 1
-          ? "Student registered for LMS"
-          : "Student removed from LMS",
+          ? "Student registered for LMS successfully"
+          : "Student removed from LMS successfully",
       data: student,
     });
   } catch (error) {
