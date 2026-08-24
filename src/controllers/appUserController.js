@@ -847,7 +847,10 @@ const addUser = async (req, res) => {
       c_user_status: 1,
       c_register_date: joinDate,
       candidate_idno: await generateCandidateIdno(joinDate),
-      is_lms_student: 1,
+      // Not is_lms_student: 1 here - this endpoint is shared by the plain
+      // App Users "+ Add Student" flow and the LMS page's "New Student"
+      // flow. Only the latter should register the account for LMS, and it
+      // does so with a separate setLmsStatus call right after creation.
     });
 
     return res.status(201).json({
