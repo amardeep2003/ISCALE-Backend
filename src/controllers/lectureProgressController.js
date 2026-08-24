@@ -4,6 +4,36 @@ const Subject = require("../models/subject");
 const Enrollment = require("../models/course_enrollment");
 const mongoose = require("mongoose");
 
+// Returns the enrollment if the student currently has active, unexpired
+// access to this course - or null otherwise (not enrolled, inactive,
+// unpaid, or a time-limited grant that has expired). Mirrors the checks in
+// checkCourseAccessMiddleware.js, which only covers the /topics/private
+// route - lecture-progress has its own set of routes that need the same
+// gate rather than only checking "an enrollment row exists at all".
+const getActiveEnrollment = async (userId, courseId) => {
+  const enrollment = await Enrollment.findOne({
+    user_id: userId,
+    course_id: courseId,
+    status: 1,
+  });
+
+  if (!enrollment) return null;
+
+  if (enrollment.course_type === 2 && enrollment.payment_status !== 1) {
+    return null;
+  }
+
+  if (
+    enrollment.access_type === "limited" &&
+    enrollment.expiry_date &&
+    new Date() > new Date(enrollment.expiry_date)
+  ) {
+    return null;
+  }
+
+  return enrollment;
+};
+
 const getSubjectsByCourseId = async (courseId) => {
   return Subject.aggregate([
     {
@@ -79,15 +109,12 @@ exports.markLectureComplete = async (req, res) => {
     }
 
     // 3. Enrollment check
-    const enrollment = await Enrollment.findOne({
-      user_id: req.user.id,
-      course_id: courseId,
-    });
+    const enrollment = await getActiveEnrollment(req.user.id, courseId);
 
     if (!enrollment) {
       return res.status(403).json({
         status: false,
-        message: "Not enrolled",
+        message: "You don't have active access to this course",
       });
     }
 
@@ -196,15 +223,12 @@ exports.getCourseProgress = async (req, res) => {
       });
     }
 
-    const enrollment = await Enrollment.findOne({
-      user_id: req.user.id,
-      course_id,
-    });
+    const enrollment = await getActiveEnrollment(req.user.id, course_id);
 
     if (!enrollment) {
       return res.status(403).json({
         status: false,
-        message: "Not enrolled",
+        message: "You don't have active access to this course",
       });
     }
 
@@ -250,15 +274,12 @@ exports.getLecturesWithProgress = async (req, res) => {
       });
     }
 
-    const enrollment = await Enrollment.findOne({
-      user_id: req.user.id,
-      course_id: subject.m_subject_course,
-    });
+    const enrollment = await getActiveEnrollment(req.user.id, subject.m_subject_course);
 
     if (!enrollment) {
       return res.status(403).json({
         status: false,
-        message: "Not enrolled",
+        message: "You don't have active access to this course",
       });
     }
 
@@ -308,6 +329,15 @@ exports.getCourseProgressDebug = async (req, res) => {
       return res.status(400).json({
         status: false,
         message: "Invalid course ID",
+      });
+    }
+
+    const enrollment = await getActiveEnrollment(req.user.id, course_id);
+
+    if (!enrollment) {
+      return res.status(403).json({
+        status: false,
+        message: "You don't have active access to this course",
       });
     }
 
