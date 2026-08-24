@@ -11,6 +11,7 @@ const {
   toggleLifetimeAccess,
   addUser,
   setLmsStatus,
+  resetFaceData,
   getAssignedCourses,
   assignCourses,
   removeCourseAssignment,
@@ -79,6 +80,15 @@ router.patch(
   authMiddleware,
   adminMiddleware,
   setLmsStatus,
+);
+
+// Clears a student's enrolled face-lock biometric data so they can
+// re-register a new face (see resetFaceData).
+router.patch(
+  "/reset-face/:id",
+  authMiddleware,
+  adminMiddleware,
+  resetFaceData,
 );
 
 module.exports = router;

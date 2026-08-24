@@ -6,6 +6,7 @@ const City = require("../models/city");
 const Enrollment = require("../models/course_enrollment");
 const Course = require("../models/course");
 const generateCandidateIdno = require("../utils/generateCandidateIdno");
+const { deleteFile } = require("../services/storageService");
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
@@ -919,6 +920,54 @@ const setLmsStatus = async (req, res) => {
   }
 };
 
+// Clears this student's enrolled face-biometric data (face-lock) so they
+// can register a new one from the app - e.g. a new phone, or a bad/wrong
+// enrollment. enrollFace (mobileFaceController.js) otherwise refuses to
+// overwrite an already-registered face, so this is the only way to let
+// them re-enroll.
+const resetFaceData = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const student = await Candidate.findById(id);
+
+    if (!student) {
+      return res.status(404).json({
+        status: false,
+        message: "Student not found",
+      });
+    }
+
+    const oldPublicId = student.mobile_app_face_image_public_id;
+
+    student.mobile_app_face_registered = false;
+    student.mobile_app_face_image = null;
+    student.mobile_app_face_image_public_id = null;
+    await student.save();
+
+    if (oldPublicId) {
+      await deleteFile(oldPublicId);
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Face data removed successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 // ======================================
 // COURSE ASSIGNMENT (LMS)
 // ======================================
@@ -1095,6 +1144,7 @@ module.exports = {
   toggleLifetimeAccess,
   addUser,
   setLmsStatus,
+  resetFaceData,
   getAssignedCourses,
   assignCourses,
   removeCourseAssignment,
