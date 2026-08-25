@@ -362,7 +362,12 @@ const editUser = async (req, res) => {
     // ALT CONTACT
     // ======================================
 
-    if (isValidValue(req.body.c_alt_contact)) {
+    // Optional fields: apply whenever the key was actually sent, even as an
+    // empty string, so clearing them from the edit form persists. The admin
+    // edit form (the only caller of this endpoint) always sends every key,
+    // so isValidValue's "" === "not sent" treatment silently ignored any
+    // attempt to blank these out - the old value stuck with no error shown.
+    if (req.body.c_alt_contact !== undefined) {
       updateData.c_alt_contact = req.body.c_alt_contact;
     }
 
@@ -378,7 +383,7 @@ const editUser = async (req, res) => {
     // GENDER
     // ======================================
 
-    if (isValidValue(req.body.c_gender)) {
+    if (req.body.c_gender !== undefined) {
       updateData.c_gender = req.body.c_gender;
     }
 
@@ -386,15 +391,15 @@ const editUser = async (req, res) => {
     // DOB
     // ======================================
 
-    if (isValidValue(req.body.c_dob)) {
-      updateData.c_dob = req.body.c_dob;
+    if (req.body.c_dob !== undefined) {
+      updateData.c_dob = req.body.c_dob || null;
     }
 
     // ======================================
     // PINCODE
     // ======================================
 
-    if (isValidValue(req.body.c_current_pincode)) {
+    if (req.body.c_current_pincode !== undefined) {
       updateData.c_current_pincode = req.body.c_current_pincode;
     }
 
@@ -402,7 +407,7 @@ const editUser = async (req, res) => {
     // ADDRESS
     // ======================================
 
-    if (isValidValue(req.body.c_current_address1)) {
+    if (req.body.c_current_address1 !== undefined) {
       updateData.c_current_address1 = req.body.c_current_address1;
     }
 
@@ -663,21 +668,30 @@ const toggleAdminVerified = async (req, res) => {
       });
     }
 
-    user.c_admin_verified = user.c_admin_verified === 1 ? 0 : 1;
-
-    await Candidate.updateOne(
-      { _id: user._id },
-      { $set: { c_admin_verified: user.c_admin_verified } },
-    );
-
-    const isVerified = Boolean(
+    const currentlyVerified = Boolean(
       user.c_mobile_verified || user.c_email_verified || user.c_admin_verified,
     );
+
+    let update;
+    if (currentlyVerified) {
+      // Displayed status is an OR of three sources - flipping only
+      // c_admin_verified had no visible effect whenever mobile/email
+      // verification already made this true (the common case), which is
+      // why this toggle looked broken. Unverifying now clears all three so
+      // the click always has a real, visible effect.
+      update = { c_mobile_verified: 0, c_email_verified: 0, c_admin_verified: 0 };
+    } else {
+      update = { c_admin_verified: 1 };
+    }
+
+    await Candidate.updateOne({ _id: user._id }, { $set: update });
+
+    const isVerified = !currentlyVerified;
 
     return res.status(200).json({
       status: true,
       message: "Verified status updated successfully",
-      c_admin_verified: user.c_admin_verified,
+      c_admin_verified: update.c_admin_verified,
       isVerified,
     });
   } catch (error) {
