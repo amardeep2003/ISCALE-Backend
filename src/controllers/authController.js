@@ -12,6 +12,22 @@ const validator = require("validator");
 const axios = require("axios");
 // const bcrypt = require("bcrypt");
 
+// c_contact is declared as String in the schema, but this app has clearly
+// evolved over time and some existing candidates - anything created before
+// a schema change, or via a write path that bypassed Mongoose's
+// cast-on-save (a migration/raw insert) - may have it stored as a raw
+// BSON Number instead. A query cast to only one of the two types then
+// silently never matches those records (MongoDB equality is type-
+// sensitive), which is indistinguishable from "no account exists" -
+// causing an existing number to be treated as brand-new at the "check
+// mobile" step, or a deactivated/non-LMS account's OTP-gate check to
+// silently no-op because the account it should have matched was never
+// found in the first place. Match both representations defensively
+// instead of relying on whichever the record actually has.
+const contactQuery = (mobile) => ({
+  $or: [{ c_contact: String(mobile) }, { c_contact: Number(mobile) }],
+});
+
 // LoginPage.jsx calls this before showing the phone-vs-Google choice: India
 // (or an undetectable IP - localhost, private ranges, lookup failure) gets
 // the phone/OTP flow; anywhere else gets Google-only.
@@ -211,9 +227,7 @@ exports.loginWithPassword = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({
-      c_contact: mobile,
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user) {
       return res.status(404).json({
@@ -281,7 +295,7 @@ exports.loginSendOtp = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({ c_contact: Number(mobile) });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user || !user.c_first_name) {
       return res.status(404).json({
@@ -337,7 +351,7 @@ exports.loginVerifyOtp = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({ c_contact: Number(mobile) });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user || !user.c_first_name) {
       return res.status(404).json({
@@ -410,9 +424,7 @@ exports.checkMobile = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({
-      c_contact: Number(mobile),
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     // ==========================
     // NEW USER
@@ -474,9 +486,7 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({
-      c_contact: Number(mobile),
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user) {
       return res.status(404).json({
@@ -530,9 +540,7 @@ exports.resendOtp = async (req, res) => {
       });
     }
 
-    let user = await Candidate.findOne({
-      c_contact: mobile,
-    });
+    let user = await Candidate.findOne(contactQuery(mobile));
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -688,9 +696,7 @@ exports.register = async (req, res) => {
     }
 
     // Mobile se temporary user find karo
-    const user = await Candidate.findOne({
-      c_contact: mobile,
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user) {
       return res.status(404).json({
@@ -795,9 +801,7 @@ exports.createPassword = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({
-      c_contact: Number(mobile),
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user) {
       return res.status(404).json({
@@ -851,9 +855,7 @@ exports.sendForgotPasswordOtp = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({
-      c_contact: mobile,
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user) {
       return res.status(404).json({
@@ -903,9 +905,7 @@ exports.verifyForgotPasswordOtp = async (req, res) => {
       });
     }
 
-    const user = await Candidate.findOne({
-      c_contact: mobile,
-    });
+    const user = await Candidate.findOne(contactQuery(mobile));
 
     if (!user) {
       return res.status(404).json({

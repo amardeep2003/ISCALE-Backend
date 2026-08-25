@@ -828,7 +828,13 @@ const addUser = async (req, res) => {
       });
     }
 
-    const existing = await Candidate.findOne({ c_contact: Number(mobile) });
+    // c_contact is schema'd as String, but some legacy candidates may have
+    // it stored as a raw Number (a write path that bypassed Mongoose's
+    // cast-on-save) - match both so this duplicate check can't miss them
+    // and create a second account for the same number.
+    const existing = await Candidate.findOne({
+      $or: [{ c_contact: String(mobile) }, { c_contact: Number(mobile) }],
+    });
     if (existing) {
       return res.status(400).json({
         status: false,

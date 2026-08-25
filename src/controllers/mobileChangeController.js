@@ -36,8 +36,14 @@ exports.addMobileNumber = async (req, res) => {
       });
     }
 
+    // c_contact is schema'd as String, but some legacy candidates may have
+    // it stored as a raw Number (a write path that bypassed Mongoose's
+    // cast-on-save) - match both so this duplicate check can't miss them.
     const existing = await Candidate.findOne({
-      c_contact: trimmedMobile,
+      $or: [
+        { c_contact: trimmedMobile },
+        { c_contact: Number(trimmedMobile) },
+      ],
       _id: { $ne: user._id },
     });
 
