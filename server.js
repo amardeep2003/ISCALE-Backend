@@ -7,6 +7,11 @@ const cors = require("cors");
 
 const app = express();
 
+// Behind Hostinger's CDN/proxy, so req.ip needs to read the real client IP
+// from X-Forwarded-For instead of the proxy's own address - used by
+// authController.detectCountry for the India/Google-only login gate.
+app.set("trust proxy", true);
+
 const connectDB = require("./src/config/db");
 connectDB();
 

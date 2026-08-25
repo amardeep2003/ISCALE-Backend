@@ -9,7 +9,59 @@ const sendEmail = require("../utils/sendEmail");
 const generateCandidateIdno = require("../utils/generateCandidateIdno");
 const { generateResetToken, generateRegisterToken } = require("../utils/token");
 const validator = require("validator");
+const axios = require("axios");
 // const bcrypt = require("bcrypt");
+
+// LoginPage.jsx calls this before showing the phone-vs-Google choice: India
+// (or an undetectable IP - localhost, private ranges, lookup failure) gets
+// the phone/OTP flow; anywhere else gets Google-only.
+//
+// Uses a free external IP-geolocation lookup (ipwho.is, no key required)
+// rather than a bundled local IP database (e.g. geoip-lite) - those ship a
+// 150MB+ data file, which is a real risk on the shared hosting this app
+// deploys to. One extra outbound call per anonymous page load is an
+// acceptable tradeoff; any failure/timeout falls back to the safe default.
+exports.detectCountry = async (req, res) => {
+  try {
+    // req.ip respects `trust proxy` (set in server.js) to read the real
+    // client IP from X-Forwarded-For behind the CDN, rather than the proxy's.
+    let ip = req.ip || "";
+    if (ip.startsWith("::ffff:")) ip = ip.slice(7); // IPv4-mapped IPv6
+
+    // Private/local IPs (dev, or a misconfigured proxy) can't be
+    // geolocated - fall straight through to the null/default response.
+    const isPrivate =
+      !ip ||
+      ip === "127.0.0.1" ||
+      ip === "::1" ||
+      /^10\./.test(ip) ||
+      /^192\.168\./.test(ip) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+
+    if (isPrivate) {
+      return res.status(200).json({ status: true, country: null });
+    }
+
+    const response = await axios.get(`https://ipwho.is/${ip}`, {
+      timeout: 3000,
+    });
+
+    const country =
+      response.data?.success !== false
+        ? response.data?.country_code || null
+        : null;
+
+    return res.status(200).json({
+      status: true,
+      country,
+    });
+  } catch (error) {
+    return res.status(200).json({
+      status: true,
+      country: null,
+    });
+  }
+};
 
 // Every newly registered candidate gets auto-enrolled in this free course
 // so there's something to see on first login instead of an empty
