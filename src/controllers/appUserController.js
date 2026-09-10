@@ -6,7 +6,7 @@ const City = require("../models/city");
 const Enrollment = require("../models/course_enrollment");
 const Course = require("../models/course");
 const generateCandidateIdno = require("../utils/generateCandidateIdno");
-const { deleteFile } = require("../services/storageService");
+const { deleteEnrolledIdentity } = require("./mobileFaceController");
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
@@ -965,15 +965,16 @@ const resetFaceData = async (req, res) => {
       });
     }
 
-    const oldPublicId = student.mobile_app_face_image_public_id;
-
     student.mobile_app_face_registered = false;
-    student.mobile_app_face_image = null;
-    student.mobile_app_face_image_public_id = null;
     await student.save();
 
-    if (oldPublicId) {
-      await deleteFile(oldPublicId);
+    try {
+      await deleteEnrolledIdentity(String(student._id));
+    } catch (mxError) {
+      console.error(
+        "MXFace identity delete error:",
+        mxError.response?.data || mxError.message,
+      );
     }
 
     return res.status(200).json({

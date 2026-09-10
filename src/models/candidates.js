@@ -280,13 +280,13 @@ const candidateSchema = new mongoose.Schema({
   // list) can log in.
   is_lms_student: { type: Number, enum: [0, 1] },
 
-  // the iScale mobile app (face-lock): the one enrolled face for this
-  // account, stored server-side so a reinstall/new device can't be used to
-  // register a second face and bypass the "one biometric identity" lock -
-  // enrollment is rejected once this is already true (see enrollFace).
+  // the iScale mobile app (face-lock): whether this account has an enrolled
+  // face on file. The face itself is never stored here - it lives entirely
+  // in MXFace's Identity API under this candidate's own _id as externalId
+  // (see mobileFaceController.js) - a reinstall/new device can't be used to
+  // register a second face and bypass the "one biometric identity" lock
+  // since enrollment is rejected once this is already true.
   mobile_app_face_registered: { type: Boolean, default: false },
-  mobile_app_face_image: { type: String, default: null },
-  mobile_app_face_image_public_id: { type: String, default: null },
 
   c_user_parent: { type: String },
   m_parent_mobile: { type: Number },

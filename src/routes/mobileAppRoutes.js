@@ -8,7 +8,7 @@ const {
   health,
   checkLiveness,
   detectFace,
-  verifyFaces,
+  verifyLoginFace,
   enrollFace,
   getFaceStatus,
 } = require("../controllers/mobileFaceController");
@@ -21,15 +21,19 @@ const {
 // Public health check for the iScale mobile app (no app-key required).
 router.get("/health", health);
 
-// MXFace proxy endpoints - gated behind the mobile app's shared secret.
+// Stateless MXFace proxies (no candidate identity involved) - gated behind
+// the mobile app's shared secret.
 router.post("/face/liveness", mobileAppMiddleware, checkLiveness);
 router.post("/face/detect", mobileAppMiddleware, detectFace);
-router.post("/face/verify", mobileAppMiddleware, verifyFaces);
 
-// Server-side face enrollment - gated behind the candidate's own auth token
-// (not the shared app-key) since it's writing to that specific account.
+// Face enrollment and login-match are gated behind the candidate's own auth
+// token (not the shared app-key): enrollment writes to that specific
+// account, and matching is now "does this photo match *this* logged-in
+// account's enrolled identity on MXFace" rather than a stateless two-image
+// compare, so both need to know who's asking.
 router.post("/face/enroll", authMiddleware, userMiddleware, enrollFace);
 router.get("/face/status", authMiddleware, userMiddleware, getFaceStatus);
+router.post("/face/verify", authMiddleware, userMiddleware, verifyLoginFace);
 
 // Lifetime-access subscription - gated behind the logged-in candidate's own
 // auth token (from /api/auth/login-contact-password etc). Activation only

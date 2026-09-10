@@ -1,9 +1,17 @@
 // Proxies the iScale mobile app's face-biometric calls to MXFace.ai, so the
 // MXFace subscription key lives only on this server and never ships inside
 // the Flutter app.
+//
+// Enrollment/matching uses MXFace's Identity API ("1-to-n search" product,
+// api/v3/FaceIdentity + api/v3/Group) instead of storing the face image
+// ourselves: the captured photo is uploaded straight to MXFace under this
+// candidate's own externalId, MXFace keeps the biometric template, and every
+// future login just asks MXFace "does this new photo match externalId X?".
+// We never persist the image or a Cloudinary copy - only a boolean flag
+// (mobile_app_face_registered) so the app knows whether to show the
+// enroll-face or scan-face screen.
 const axios = require("axios");
 const Candidate = require("../models/candidates");
-const { uploadBufferWithMeta } = require("../services/storageService");
 
 const MXFACE_BASE_URL =
   process.env.MXFACE_BASE_URL || "https://faceapi.mxface.ai/api/v3";
@@ -12,6 +20,29 @@ const mxfaceHeaders = () => ({
   "Content-Type": "application/json",
   Subscriptionkey: process.env.MXFACE_SUBSCRIPTION_KEY,
 });
+
+// All of this app's enrolled faces live in one MXFace group. Created lazily
+// on first use and cached in memory - set MXFACE_GROUP_ID in .env once it's
+// logged (see the console.warn below) so a restart doesn't spawn a new group.
+let cachedGroupId = process.env.MXFACE_GROUP_ID
+  ? Number(process.env.MXFACE_GROUP_ID)
+  : null;
+
+const getGroupId = async () => {
+  if (cachedGroupId) return cachedGroupId;
+
+  const response = await axios.post(
+    `${MXFACE_BASE_URL}/Group`,
+    { groupName: "iscale-mobile-app-students" },
+    { headers: mxfaceHeaders() },
+  );
+
+  cachedGroupId = response.data.groupId;
+  console.warn(
+    `MXFace group created (id ${cachedGroupId}) - set MXFACE_GROUP_ID=${cachedGroupId} in .env so this group isn't recreated on every restart.`,
+  );
+  return cachedGroupId;
+};
 
 // ======================================
 // HEALTH CHECK
@@ -25,7 +56,7 @@ exports.health = (req, res) => {
 };
 
 // ======================================
-// LIVENESS CHECK
+// LIVENESS CHECK (stateless, no DB involved)
 // ======================================
 exports.checkLiveness = async (req, res) => {
   try {
@@ -39,7 +70,7 @@ exports.checkLiveness = async (req, res) => {
     }
 
     const response = await axios.post(
-      `${MXFACE_BASE_URL}/face/Liveness`,
+      `${MXFACE_BASE_URL}/Face/Liveness`,
       { encoded_image },
       { headers: mxfaceHeaders() },
     );
@@ -60,7 +91,7 @@ exports.checkLiveness = async (req, res) => {
 };
 
 // ======================================
-// FACE DETECT
+// FACE DETECT (stateless, no DB involved)
 // ======================================
 exports.detectFace = async (req, res) => {
   try {
@@ -74,7 +105,7 @@ exports.detectFace = async (req, res) => {
     }
 
     const response = await axios.post(
-      `${MXFACE_BASE_URL}/face/detect`,
+      `${MXFACE_BASE_URL}/Face/detect`,
       { encoded_image },
       { headers: mxfaceHeaders() },
     );
@@ -95,12 +126,10 @@ exports.detectFace = async (req, res) => {
 };
 
 // ======================================
-// ENROLL FACE (server-side persistence)
+// ENROLL FACE - uploads the photo to MXFace under this candidate's own id.
+// One-time: rejects if this account already has a face on file. No image
+// or Cloudinary reference is stored on our side, only the boolean flag.
 // ======================================
-// One-time write: this account's face gets locked in here so a reinstall or
-// a new device can't be used to enroll a *different* face under the same
-// account. The app should only call this once, right after the local
-// liveness/detect checks pass on FaceRegistrationScreen.
 exports.enrollFace = async (req, res) => {
   try {
     const { encoded_image } = req.body;
@@ -128,32 +157,41 @@ exports.enrollFace = async (req, res) => {
       });
     }
 
-    const buffer = Buffer.from(encoded_image, "base64");
-    const uploaded = await uploadBufferWithMeta(
-      buffer,
-      `${user._id}-face.jpg`,
-      "image/jpeg",
-      "mobile-app/faces",
+    const groupId = await getGroupId();
+    const qualityThreshold = Number(process.env.MXFACE_QUALITY_THRESHOLD) || 80;
+
+    const response = await axios.post(
+      `${MXFACE_BASE_URL}/FaceIdentity`,
+      {
+        groupIds: [groupId],
+        encoded_Image: encoded_image,
+        externalId: String(user._id),
+        qualityThreshold,
+      },
+      { headers: mxfaceHeaders() },
     );
 
+    if (response.data.errorCode || !response.data.faceIdentityId) {
+      return res.status(400).json({
+        status: false,
+        message: response.data.errorMessage || "Face enrollment failed",
+      });
+    }
+
     user.mobile_app_face_registered = true;
-    user.mobile_app_face_image = uploaded.url;
-    user.mobile_app_face_image_public_id = uploaded.public_id;
     await user.save();
 
     return res.status(200).json({
       status: true,
       message: "Face enrolled successfully",
-      data: {
-        hasFaceRegistered: true,
-        faceImageUrl: uploaded.url,
-      },
+      data: { hasFaceRegistered: true },
     });
   } catch (error) {
-    console.error("Face enroll error:", error.message);
-    return res.status(500).json({
+    console.error("MXFace Enroll Error:", error.response?.data || error.message);
+    return res.status(502).json({
       status: false,
-      message: error.message,
+      message: "Face enrollment failed",
+      error: error.response?.data || error.message,
     });
   }
 };
@@ -164,7 +202,7 @@ exports.enrollFace = async (req, res) => {
 exports.getFaceStatus = async (req, res) => {
   try {
     const user = await Candidate.findById(req.user.id).select(
-      "mobile_app_face_registered mobile_app_face_image",
+      "mobile_app_face_registered",
     );
 
     if (!user) {
@@ -176,10 +214,7 @@ exports.getFaceStatus = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      data: {
-        hasFaceRegistered: !!user.mobile_app_face_registered,
-        faceImageUrl: user.mobile_app_face_image || null,
-      },
+      data: { hasFaceRegistered: !!user.mobile_app_face_registered },
     });
   } catch (error) {
     return res.status(500).json({
@@ -190,36 +225,86 @@ exports.getFaceStatus = async (req, res) => {
 };
 
 // ======================================
-// FACE VERIFY (COMPARE)
+// FACE LOGIN VERIFY - searches this app's MXFace group for the newly
+// captured photo and confirms the closest match is *this* logged-in
+// account's own enrolled identity (not just "someone" in the group).
+// JWT-gated (unlike the old raw two-image /face/verify) because matching
+// is now relative to a specific account rather than two images the caller
+// already had in hand.
 // ======================================
-exports.verifyFaces = async (req, res) => {
+exports.verifyLoginFace = async (req, res) => {
   try {
-    const { encoded_image1, encoded_image2 } = req.body;
+    const { encoded_image } = req.body;
 
-    if (!encoded_image1 || !encoded_image2) {
+    if (!encoded_image) {
       return res.status(400).json({
         status: false,
-        message: "encoded_image1 and encoded_image2 are required",
+        message: "encoded_image is required",
       });
     }
 
+    const groupId = await getGroupId();
+    const matchConfidence = Number(process.env.MXFACE_MATCH_CONFIDENCE) || 80;
+
     const response = await axios.post(
-      `${MXFACE_BASE_URL}/face/verify`,
-      { encoded_image1, encoded_image2 },
+      `${MXFACE_BASE_URL}/FaceIdentity/search`,
+      {
+        groupIds: [groupId],
+        encoded_Image: encoded_image,
+        limit: 1,
+        matchConfidence,
+      },
       { headers: mxfaceHeaders() },
     );
 
+    if (response.data.errorCode) {
+      return res.status(502).json({
+        status: false,
+        message: response.data.errorMessage || "Face verification failed",
+      });
+    }
+
+    const top = response.data.searchedIdentities?.[0];
+    // matchResult mirrors the Face/verify endpoint's convention (1 = match),
+    // but the search endpoint already filters by matchConfidence server-side
+    // - so a returned identity with the right externalId is trusted even if
+    // matchResult itself is missing/null.
+    const isMatch =
+      !!top &&
+      top.identity?.externalId === String(req.user.id) &&
+      top.matchResult !== 0;
+
     return res.status(200).json({
       status: true,
-      data: response.data,
+      data: { isMatch },
     });
   } catch (error) {
-    console.error("MXFace Verify Error:", error.response?.data || error.message);
-
+    console.error("MXFace Search Error:", error.response?.data || error.message);
     return res.status(502).json({
       status: false,
       message: "Face verification failed",
       error: error.response?.data || error.message,
     });
   }
+};
+
+// ======================================
+// Removes this candidate's enrolled identity from MXFace entirely, so they
+// can enroll a fresh face afterwards. Used by the admin's "Remove Registered
+// Face" action (appUserController.resetFaceData) - failures here are logged
+// but don't block clearing our own flag, since MXFace being unreachable
+// shouldn't trap an admin from resetting a student's local state.
+// ======================================
+exports.deleteEnrolledIdentity = async (externalId) => {
+  const lookup = await axios.get(
+    `${MXFACE_BASE_URL}/FaceIdentity/${externalId}/facIdentities`,
+    { headers: mxfaceHeaders() },
+  );
+
+  const faceIdentityId = lookup.data?.faceIdentityId;
+  if (!faceIdentityId) return;
+
+  await axios.delete(`${MXFACE_BASE_URL}/FaceIdentity/${faceIdentityId}`, {
+    headers: mxfaceHeaders(),
+  });
 };
